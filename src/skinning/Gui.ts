@@ -2,7 +2,7 @@ import { Camera } from "../lib/webglutils/Camera.js";
 import { CanvasAnimation } from "../lib/webglutils/CanvasAnimation.js";
 import { SkinningAnimation } from "./App.js";
 import { Mat4, Vec3, Vec4, Vec2, Mat2, Quat } from "../lib/TSM.js";
-import { Bone } from "./Scene.js";
+import { Bone, Mesh } from "./Scene.js";
 import { RenderPass } from "../lib/webglutils/RenderPass.js";
 
 /**
@@ -18,8 +18,8 @@ interface IGUI {
 }
 
 export enum Mode {
-  playback,  
-  edit  
+  playback,
+  edit
 }
 
 /**
@@ -46,14 +46,14 @@ export class GUI implements IGUI {
   private animation: SkinningAnimation;
 
   public time: number;
-  
+
   public mode: Mode;
-  
+
 
   public hoverX: number = 0;
   public hoverY: number = 0;
 
-
+  public numKeyFrames: number = 0;
   /**
    *
    * @param canvas required to get the width and height of the canvas
@@ -66,22 +66,22 @@ export class GUI implements IGUI {
     this.width = canvas.width;
     this.prevX = 0;
     this.prevY = 0;
-    
+
     this.animation = animation;
-    
+
     this.reset();
-    
+
     this.registerEventListeners(canvas);
   }
 
   public getNumKeyFrames(): number {
     // TODO
     // Used in the status bar in the GUI
-    return 0;
+    return this.numKeyFrames;
   }
   public getTime(): number { return this.time; }
-  
-  public getMaxTime(): number { 
+
+  public getMaxTime(): number {
     // TODO
     // The animation should stop after the last keyframe
     return 0;
@@ -145,14 +145,17 @@ export class GUI implements IGUI {
       // outside the main panel
       return;
     }
-    
+
     // TODO
     // Some logic to rotate the bones, instead of moving the camera, if there is a currently highlighted bone
-    
+
+    let clickLoc: Vec3 = this.screenToWorld(mouse.offsetX, mouse.offsetY, this.camera.zNear(), false);
+    console.log(clickLoc);
+
     this.dragging = true;
     this.prevX = mouse.screenX;
     this.prevY = mouse.screenY;
-    
+
   }
 
   public incrementTime(dT: number): void {
@@ -211,12 +214,62 @@ export class GUI implements IGUI {
           break;
         }
       }
-    } 
-    
+    }
     // TODO
     // You will want logic here:
     // 1) To highlight a bone, if the mouse is hovering over a bone;
     // 2) To rotate a bone, if the mouse button is pressed and currently highlighting a bone.
+    let mouseLoc: Vec3 = this.screenToWorld(x, y, this.camera.zNear(), false);
+
+    let pos: Vec3 = this.camera.pos();
+    let dir: Vec3 = Vec3.difference(mouseLoc, pos);
+    dir.normalize();
+
+    let bones: Bone[] = this.animation.getScene().meshes[0].bones;
+    let currBone: Bone = null;
+    let currTime: number = Bone.NO_INTERSECT;
+
+    for (let i = 0; i < bones.length; i++) {
+      // intersect each bone with ray
+      let t = bones[i].intersect(pos, dir);
+      if (t != Bone.NO_INTERSECT) {
+        if (t < currTime) {
+          currBone = bones[i];
+          currTime = t;
+          console.log(currBone, currTime);
+        }
+      } else {
+        bones[i].removeHighlight();
+      }
+    }
+
+    // Highlights everytime, but technically,
+    // check to see if it's highlight will 
+    // also happen everytime. 
+    if(currBone != null)
+      currBone.highlight();
+  }
+
+  // Convert from screen to world coordinates
+  public screenToWorld(offsetX: number, offsetY: number, 
+                zValue: number, isVec: boolean) : Vec3 {
+    let x = this.camera.right();
+    let y = this.camera.up();
+    let z = this.camera.forward();
+    let o = this.camera.pos();
+
+    let vals: number[] =
+      [x.x, x.y, x.z, 0,
+      y.x, y.y, y.z, 0,
+      z.x, z.y, z.z, 0,
+      o.x, o.y, o.z, 1];
+    let mat: Mat4 = new Mat4(vals);
+
+    let vector: number = isVec ? 0 : 1;
+    let vec: Vec4 = new Vec4([offsetX, offsetY, zValue, vector]); 
+    let result = mat.multiplyVec4(vec);
+
+    return new Vec3([result.x, result.y, result.z]);
   }
 
   public getModeString(): string {
@@ -234,9 +287,24 @@ export class GUI implements IGUI {
     this.dragging = false;
     this.prevX = 0;
     this.prevY = 0;
-    
+
     // TODO
+    // Ask in office hours (how drag actually works)
     // Maybe your bone highlight/dragging logic needs to do stuff here too
+  }
+
+  public zoom(wheel: WheelEvent): void {
+    let deltaX = wheel.deltaX;
+    let deltaY = wheel.deltaY;
+
+    let zoomAmount = 1.0 + GUI.zoomSpeed;
+    if (deltaY < 0) { // Scroll up  /zoomAmount
+      this.camera.zoom(1 / zoomAmount);
+    }
+    else if (deltaY > 0) { // Scroll down  *zoomAmount
+      this.camera.zoom(zoomAmount);
+    }
+    //console.log("Scroll amount: " + deltaY);
   }
 
   /**
@@ -256,7 +324,7 @@ export class GUI implements IGUI {
       case "Digit3": {
         this.animation.setScene("/static/assets/skinning/simple_art.dae");
         break;
-      }      
+      }
       case "Digit4": {
         this.animation.setScene("/static/assets/skinning/mapped_cube.dae");
         break;
@@ -275,10 +343,10 @@ export class GUI implements IGUI {
       }
       case "KeyW": {
         this.camera.offset(
-            this.camera.forward().negate(),
-            GUI.zoomSpeed,
-            true
-          );
+          this.camera.forward().negate(),
+          GUI.zoomSpeed,
+          true
+        );
         break;
       }
       case "KeyA": {
@@ -295,6 +363,7 @@ export class GUI implements IGUI {
       }
       case "KeyR": {
         this.animation.reset();
+        this.numKeyFrames = 0;
         break;
       }
       case "ArrowLeft": {
@@ -315,14 +384,18 @@ export class GUI implements IGUI {
       }
       case "KeyK": {
         if (this.mode === Mode.edit) {
-            // TODO
-            // Add keyframe
+          // TODO
+          this.numKeyFrames++;
+          //console.log("Number of Key Frames:", numKeyFrames);
+          for (let i = 0; i < this.getNumKeyFrames(); i++) {
+
+          }
+          // Add keyframe
         }
         break;
-      }      
+      }
       case "KeyP": {
-        if (this.mode === Mode.edit && this.getNumKeyFrames() > 1)
-        {
+        if (this.mode === Mode.edit && this.getNumKeyFrames() > 1) {
           this.mode = Mode.playback;
           this.time = 0;
         } else if (this.mode === Mode.playback) {
@@ -358,6 +431,10 @@ export class GUI implements IGUI {
 
     canvas.addEventListener("mouseup", (mouse: MouseEvent) =>
       this.dragEnd(mouse)
+    );
+
+    canvas.addEventListener("wheel", (wheel: WheelEvent) =>
+      this.zoom(wheel)
     );
 
     /* Event listener to stop the right click menu */

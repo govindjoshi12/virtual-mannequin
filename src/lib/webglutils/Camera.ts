@@ -23,18 +23,18 @@ export class RayCamera {
     let yDir = new Vec3([0, 1, 0]);
     let xDir = Vec3.cross(yDir, zDir);
     this.rotationMatrix = new Mat3((xDir.xyz as number[]).concat(yDir.xyz as number[]).concat(zDir.xyz));
-    this.u = this.rotationMatrix.multiplyVec3(new Vec3([this.normalizedHeight*this.aspect, 0, 0]));
+    this.u = this.rotationMatrix.multiplyVec3(new Vec3([this.normalizedHeight * this.aspect, 0, 0]));
     this.v = this.rotationMatrix.multiplyVec3(new Vec3([0, this.normalizedHeight, 0]), this.v);
     this.look = this.rotationMatrix.multiplyVec3(new Vec3([0, 0, -1]));
 
   }
 
- /* public rayThrough(x: number, y: number): Ray {
-    x -= .5;
-    y -= .5;
-    let dir = Vec3.sum(this.look, Vec3.sum(this.u.copy().scale(x), this.v.copy().scale(y)));
-    return new Ray(this.position, dir.normalize());
-  }*/
+  /* public rayThrough(x: number, y: number): Ray {
+     x -= .5;
+     y -= .5;
+     let dir = Vec3.sum(this.look, Vec3.sum(this.u.copy().scale(x), this.v.copy().scale(y)));
+     return new Ray(this.position, dir.normalize());
+   }*/
 }
 
 // Camera - defines a camera to be used in an OpenGL app
@@ -329,6 +329,13 @@ export class Camera {
       posToEye = rotMat.multiplyPt3(posToEye);
       this._eye = Vec3.sum(pos, posToEye);
     }
+  }
+
+  public zoom(zoomSpeed: number): void {
+    this._fov *= zoomSpeed;
+    // this._aspect *= zoomSpeed;
+    // this._zNear *= zoomSpeed;
+    // this._zFar *= zoomSpeed;
   }
 
   // Camera::viewMatrix - returns the view matrix

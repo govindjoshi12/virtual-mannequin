@@ -37,6 +37,9 @@ export class SkinningAnimation extends CanvasAnimation {
   /* Skeleton rendering info */
   private skeletonRenderPass: RenderPass;
 
+  /* Bone Highlighting rendering info */
+  private boneRenderPass: RenderPass;
+
   /* Scrub bar background rendering info */
   private sBackRenderPass: RenderPass;
   
@@ -221,6 +224,11 @@ export class SkinningAnimation extends CanvasAnimation {
         gl.uniform4fv(loc, this.getScene().meshes[0].getBoneRotations());
     });
 
+    this.skeletonRenderPass.addUniform("bHighlights",
+    (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+      gl.uniform4fv(loc, this.getScene().meshes[0].getBoneHighlights());
+    });
+
     this.skeletonRenderPass.setDrawData(this.ctx.LINES,
       this.scene.meshes[0].getBoneIndices().length, this.ctx.UNSIGNED_INT, 0);
     this.skeletonRenderPass.setup();
@@ -329,8 +337,10 @@ export class SkinningAnimation extends CanvasAnimation {
       this.sceneRenderPass.draw();
       gl.disable(gl.DEPTH_TEST);
       this.skeletonRenderPass.draw();
+      
       // TODO
       // Also draw the highlighted bone (if applicable)
+      // this.boneRenderPass.draw();
       gl.enable(gl.DEPTH_TEST);      
     }
   }
