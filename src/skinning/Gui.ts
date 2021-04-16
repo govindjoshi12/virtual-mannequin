@@ -149,9 +149,6 @@ export class GUI implements IGUI {
     // TODO
     // Some logic to rotate the bones, instead of moving the camera, if there is a currently highlighted bone
 
-    let clickLoc: Vec3 = this.screenToWorld(mouse.offsetX, mouse.offsetY, this.camera.zNear(), false);
-    console.log(clickLoc);
-
     this.dragging = true;
     this.prevX = mouse.screenX;
     this.prevY = mouse.screenY;
@@ -219,11 +216,9 @@ export class GUI implements IGUI {
     // You will want logic here:
     // 1) To highlight a bone, if the mouse is hovering over a bone;
     // 2) To rotate a bone, if the mouse button is pressed and currently highlighting a bone.
-    let mouseLoc: Vec3 = this.screenToWorld(x, y, this.camera.zNear(), false);
 
     let pos: Vec3 = this.camera.pos();
-    let dir: Vec3 = Vec3.difference(mouseLoc, pos);
-    dir.normalize();
+    let dir: Vec3 = this.unproject(x, y);
 
     let bones: Bone[] = this.animation.getScene().meshes[0].bones;
     let currBone: Bone = null;
@@ -236,11 +231,12 @@ export class GUI implements IGUI {
         if (t < currTime) {
           currBone = bones[i];
           currTime = t;
-          console.log(currBone, currTime);
         }
-      } else {
-        bones[i].removeHighlight();
+        else 
+          bones[i].removeHighlight();
       }
+      else
+        bones[i].removeHighlight();
     }
 
     // Highlights everytime, but technically,
@@ -250,26 +246,29 @@ export class GUI implements IGUI {
       currBone.highlight();
   }
 
-  // Convert from screen to world coordinates
-  public screenToWorld(offsetX: number, offsetY: number, 
-                zValue: number, isVec: boolean) : Vec3 {
-    let x = this.camera.right();
-    let y = this.camera.up();
-    let z = this.camera.forward();
-    let o = this.camera.pos();
+  // Unproject Screen Coordinates to World Coordinates
+  // and return a vector from camera eye to that point
+  public unproject(x: number, y: number) : Vec3 {
+    // mouseNDC = ((2x/w)-1, (2y/h)-1, -1);
+    // mouseW = inv(V) * inv(P) * mouseNDC
+    // raydir = (mouseW / mouseW[3]) - eye
 
-    let vals: number[] =
-      [x.x, x.y, x.z, 0,
-      y.x, y.y, y.z, 0,
-      z.x, z.y, z.z, 0,
-      o.x, o.y, o.z, 1];
-    let mat: Mat4 = new Mat4(vals);
+    let newX : number = ((2 * x) / this.width) - 1;
+    let newY : number = 1 - ((2 * y) / this.height);
 
-    let vector: number = isVec ? 0 : 1;
-    let vec: Vec4 = new Vec4([offsetX, offsetY, zValue, vector]); 
-    let result = mat.multiplyVec4(vec);
+    let mouseNDC : Vec4 = new Vec4([newX, newY, -1, 1]);
 
-    return new Vec3([result.x, result.y, result.z]);
+    let invV = this.viewMatrix().inverse();
+    let invP = this.projMatrix().inverse();
+  
+    let mouseWorld : Vec4 = invV.multiplyVec4(invP.multiplyVec4(mouseNDC));
+    mouseWorld.scale(1 / mouseWorld.w);
+    
+    let rayDir = new Vec3(mouseWorld.xyz);
+    rayDir = Vec3.difference(rayDir, this.camera.pos());
+    rayDir.normalize();
+
+    return rayDir;
   }
 
   public getModeString(): string {

@@ -1,4 +1,4 @@
-import { Mat3, Mat4, Quat, Vec3, Vec4 } from "../lib/TSM.js";
+import { Mat2, Mat3, Mat4, Quat, Vec3, Vec4 } from "../lib/TSM.js";
 import { AttributeLoader, MeshGeometryLoader, BoneLoader, MeshLoader } from "./AnimationFileLoader.js";
 
 export class Attribute {
@@ -52,7 +52,7 @@ export class Bone {
 
   public static RAY_EPSILON: number = 0; // epsilon value for "safer" collision detection
   public static NO_INTERSECT: number = Number.MAX_SAFE_INTEGER; // Max value 
-  public static RADIUS: number = 10;
+  public static RADIUS: number = 0.25;
 
   public isHighlighted : boolean = false;
 
@@ -78,57 +78,40 @@ export class Bone {
 
   // dir is normalized in Gui
   public intersect(pos: Vec3, dir: Vec3): number {
-    // Translate points with position at origin
-    let newPosition : Vec3 = new Vec3([0, 0, 0]);
-    let newEndpoint : Vec3 = Vec3.difference(this.endpoint, this.position);
-    pos = Vec3.difference(pos, this.endpoint); 
-
     // Rotate cylinder to align with z-axis.
     // Rotate ray with same rotation matrix to 
     // maintain original ray-cylinder alignment.
-    let rotMat : Mat3 = this.zAxisAlignedCoords(newPosition, newEndpoint);
-    newPosition = rotMat.multiplyVec3(newPosition);
-    newEndpoint = rotMat.multiplyVec3(newEndpoint);
-    dir = rotMat.multiplyVec3(dir);
+    let rotQuat = this.zAxisAlignedCoords(this.position, this.endpoint);
+    let newPos = rotQuat.multiplyVec3(this.position);
+    let newEndp = rotQuat.multiplyVec3(this.endpoint);
+    pos = rotQuat.multiplyVec3(pos);
+    dir = rotQuat.multiplyVec3(dir);
     dir.normalize();
 
+    pos = Vec3.difference(pos, newPos);
+    newEndp = Vec3.difference(newEndp, newPos);
     // newEndpoint[0 and 1] should be 0
     // All elements of newPosition should be 0
-    let zMin: number = Math.min(newPosition.z, newEndpoint.z);
-    let zMax: number = Math.max(newPosition.z, newEndpoint.z);
+    let zMin: number = Math.min(0, newEndp.z);
+    let zMax: number = Math.max(0, newEndp.z);
 
     let tBody = this.intersectBody(pos, dir, zMin, zMax);
     return tBody;
   }
 
   // Parameter is endpoint - position, since position
-  // is now equal to origin (position - position)
-  public zAxisAlignedCoords(newPosition: Vec3, newEndpoint: Vec3) : Mat3 {
-    let x_axis = new Vec3([1, 0, 0]);
-
-    // Actual orientation of X and Y doesn't matter as long as
-    // Z axis is formed with endpoint - position, and all vectors
-    // are orthogonal
-
-    let cylinderZ : Vec3 = Vec3.difference(newEndpoint, newPosition);
-    let cylinderY : Vec3 = Vec3.cross(cylinderZ, x_axis);
-    let cylinderX : Vec3 = Vec3.cross(cylinderZ, cylinderY);
-
-    cylinderX.normalize();
-    cylinderY.normalize();
-    cylinderZ.normalize();
-
-    // Matrix with cols cylinderX, Y, and Z is the rotation matrix
-    // of the cylinder. This can be interpreted as converting the
-    // world coordinates to the current coordinates of the cylinder.
-    // Thus the inverse should result in a matrix which transforms 
-    // from cylinder coordinates to world coordinates. 
-    let matrix : Mat3 = new Mat3([
-      cylinderX.x, cylinderX.y, cylinderX.z,
-      cylinderY.x, cylinderY.y, cylinderY.z,
-      cylinderZ.x, cylinderZ.y, cylinderZ.z
-    ]);
-    return matrix.inverse();
+  // is now equal to origin (position - position).
+  // Finds the rotation quaternion which rotates the p2-p1 
+  // vector to the z-axis
+  public zAxisAlignedCoords(pos: Vec3, endp: Vec3) : Quat {
+    // pos to endp = endp - pos
+    let A : Vec3 = Vec3.difference(endp, pos);
+    A.normalize();
+    let B : Vec3 = new Vec3([0, 0, 1]);
+    
+    let axis : Vec3 = Vec3.cross(A, B);
+    let angle : number = Math.acos(Vec3.dot(A, B));
+    return Quat.fromAxisAngle(axis, angle).normalize();
   }
 
   private intersectBody(pos: Vec3, dir: Vec3, zMin: number, zMax: number): number {
