@@ -38,6 +38,7 @@ export class GUI implements IGUI {
   private fps: boolean;
   private prevX: number;
   private prevY: number;
+  private canvasPadding: number;
 
   private height: number;
   private viewPortHeight: number;
@@ -68,6 +69,7 @@ export class GUI implements IGUI {
     this.prevY = 0;
 
     this.animation = animation;
+    this.canvasPadding = canvas.getBoundingClientRect().x;
 
     this.reset();
 
@@ -174,6 +176,8 @@ export class GUI implements IGUI {
   public drag(mouse: MouseEvent): void {
     let x = mouse.offsetX;
     let y = mouse.offsetY;
+    console.log("x: ", x, "y: ", y);
+
     if (this.dragging) {
       const dx = mouse.screenX - this.prevX;
       const dy = mouse.screenY - this.prevY;
@@ -181,7 +185,7 @@ export class GUI implements IGUI {
       this.prevY = mouse.screenY;
 
       /* Left button, or primary button */
-      const mouseDir: Vec3 = this.camera.right();
+      let mouseDir: Vec3 = this.camera.right();
       mouseDir.scale(-dx);
       mouseDir.add(this.camera.up().scale(dy));
       mouseDir.normalize();
@@ -190,71 +194,96 @@ export class GUI implements IGUI {
         return;
       }
 
-      switch (mouse.buttons) {
-        case 1: {
-          let rotAxis: Vec3 = Vec3.cross(this.camera.forward(), mouseDir);
-          rotAxis = rotAxis.normalize();
+      let bone: Bone = this.animation.getScene().meshes[0].getBone();
+      if(bone != null) {
+        // Rotate Bone
+        // Based on mouseDir, need to get quaternion that represents
+        // this rotation. Then just multiply bone with quat. 
+        let boneDir: Vec3 = Vec3.difference(bone.endpoint, bone.position);
+        mouseDir = new Vec3([-1 * mouseDir.x, mouseDir.y, 0]);
+        let axis: Vec3 = Vec3.cross(boneDir, mouseDir);
+        bone.rotate(GUI.rotationSpeed, axis);
 
-          if (this.fps) {
-            this.camera.rotate(rotAxis, GUI.rotationSpeed);
-          } else {
-            this.camera.orbitTarget(rotAxis, GUI.rotationSpeed);
+        this.animation.getScene().meshes[0].update();
+      } else {
+        switch (mouse.buttons) {
+          case 1: {
+            let rotAxis: Vec3 = Vec3.cross(this.camera.forward(), mouseDir);
+            rotAxis = rotAxis.normalize();
+  
+            if (this.fps) {
+              this.camera.rotate(rotAxis, GUI.rotationSpeed);
+            } else {
+              this.camera.orbitTarget(rotAxis, GUI.rotationSpeed);
+            }
+            break;
           }
-          break;
-        }
-        case 2: {
-          /* Right button, or secondary button */
-          this.camera.offsetDist(Math.sign(mouseDir.y) * GUI.zoomSpeed);
-          break;
-        }
-        default: {
-          break;
+          case 2: {
+            /* Right button, or secondary button */
+            this.camera.offsetDist(Math.sign(mouseDir.y) * GUI.zoomSpeed);
+            break;
+          }
+          default: {
+            break;
+          }
         }
       }
-    }
-    // TODO
-    // You will want logic here:
-    // 1) To highlight a bone, if the mouse is hovering over a bone;
-    // 2) To rotate a bone, if the mouse button is pressed and currently highlighting a bone.
-
-    let pos: Vec3 = this.camera.pos();
-    let dir: Vec3 = this.unproject(x, y);
-
-    let bones: Bone[] = this.animation.getScene().meshes[0].bones;
-    let currBone: Bone = null;
-    let currTime: number = Bone.NO_INTERSECT;
-
-    for (let i = 0; i < bones.length; i++) {
-      // intersect each bone with ray
-      let t = bones[i].intersect(pos, dir);
-      if (t != Bone.NO_INTERSECT) {
-        if (t < currTime) {
-          currBone = bones[i];
-          currTime = t;
+    } else {
+      // TODO
+      // You will want logic here:
+      // 1) To highlight a bone, if the mouse is hovering over a bone;
+      // 2) To rotate a bone, if the mouse button is pressed and currently highlighting a bone.
+      let pos: Vec3 = this.camera.pos();
+      let dir: Vec3 = this.unproject(x, y);
+  
+      let bones: Bone[] = this.animation.getScene().meshes[0].bones;
+      let currBone: Bone = null;
+      let currTime: number = Bone.NO_INTERSECT;
+  
+      for (let i = 0; i < bones.length; i++) {
+        // intersect each bone with ray
+        let t = bones[i].intersect(pos, dir);
+        let hl = false;
+        if (t != Bone.NO_INTERSECT) {
+          if (t <= currTime) {
+            currBone = bones[i];
+            currTime = t;
+            hl = true;
+          }
         }
-        else 
-          bones[i].removeHighlight();
+  
+        if(!hl)
+          this.removeHighlight(bones[i]);
       }
-      else
-        bones[i].removeHighlight();
+  
+      // Highlights everytime, but technically,
+      // check to see if it's highlight will 
+      // also happen everytime. 
+      if(currBone != null)
+        this.highlight(currBone);
     }
+  }
 
-    // Highlights everytime, but technically,
-    // check to see if it's highlight will 
-    // also happen everytime. 
-    if(currBone != null)
-      currBone.highlight();
+  public highlight(bone: Bone) {
+    bone.isHighlighted = true;
+    this.animation.getScene().meshes[0].setBone(bone);
+  }
+
+  public removeHighlight(bone: Bone) {
+    bone.isHighlighted = false;
+    this.animation.getScene().meshes[0].setBone(null);
   }
 
   // Unproject Screen Coordinates to World Coordinates
   // and return a vector from camera eye to that point
   public unproject(x: number, y: number) : Vec3 {
-    // mouseNDC = ((2x/w)-1, (2y/h)-1, -1);
+    // mouseNDC = ((2x/w)-1, 1-(2y/h), -1);
     // mouseW = inv(V) * inv(P) * mouseNDC
     // raydir = (mouseW / mouseW[3]) - eye
+    // raypos = eye
 
     let newX : number = ((2 * x) / this.width) - 1;
-    let newY : number = 1 - ((2 * y) / this.height);
+    let newY : number = 1 - ((2 * y) / this.viewPortHeight);
 
     let mouseNDC : Vec4 = new Vec4([newX, newY, -1, 1]);
 

@@ -43,6 +43,7 @@ export class Bone {
   public position: Vec3; // current position of the bone's joint *in world coordinates*. Used by the provided skeleton shader, so you need to keep this up to date.
   public endpoint: Vec3; // current position of the bone's second (non-joint) endpoint, in world coordinates
   public rotation: Quat; // current orientation of the joint *with respect to world coordinates*
+  public transI: Quat; // Ti
 
   public initialPosition: Vec3; // position of the bone's joint *in world coordinates*
   public initialEndpoint: Vec3; // position of the bone's second (non-joint) endpoint, in world coordinates
@@ -52,7 +53,7 @@ export class Bone {
 
   public static RAY_EPSILON: number = 0; // epsilon value for "safer" collision detection
   public static NO_INTERSECT: number = Number.MAX_SAFE_INTEGER; // Max value 
-  public static RADIUS: number = 0.25;
+  public static RADIUS: number = 0.1;
 
   public isHighlighted : boolean = false;
 
@@ -61,31 +62,54 @@ export class Bone {
     this.children = Array.from(bone.children);
     this.position = bone.position.copy();
     this.endpoint = bone.endpoint.copy();
+
+    // Set to identity by the loader
     this.rotation = bone.rotation.copy();
+    this.transI = bone.rotation.copy();
+    
     this.offset = bone.offset;
     this.initialPosition = bone.initialPosition.copy();
     this.initialEndpoint = bone.initialEndpoint.copy();
     this.initialTransformation = bone.initialTransformation.copy();
   }
 
-  public highlight() {
-    this.isHighlighted = true;
+  public rotate(rotSpeed: number, axis: Vec3) {
+    this.transI = Quat.product(this.transI, Quat.fromAxisAngle(axis, rotSpeed));
   }
 
-  public removeHighlight() {
-    this.isHighlighted = false;
-  }
 
   // dir is normalized in Gui
   public intersect(pos: Vec3, dir: Vec3): number {
+    let newPos = this.position;
+    let newEndp = this.endpoint;
+    // Alignment with Quaternions:
+
     // Rotate cylinder to align with z-axis.
     // Rotate ray with same rotation matrix to 
     // maintain original ray-cylinder alignment.
-    let rotQuat = this.zAxisAlignedCoords(this.position, this.endpoint);
-    let newPos = rotQuat.multiplyVec3(this.position);
-    let newEndp = rotQuat.multiplyVec3(this.endpoint);
-    pos = rotQuat.multiplyVec3(pos);
-    dir = rotQuat.multiplyVec3(dir);
+    // let A : Vec3 = Vec3.difference(this.endpoint, this.position).normalize();
+    // let B : Vec3 = new Vec3([0, 0, 1]);
+    
+    // let axis : Vec3 = Vec3.cross(A, B);
+    // let angle : number = Math.floor(Math.acos(Vec3.dot(A, B)));
+    // if(angle == 180) // Cross product will be 0, so find another axis
+    //   axis = Vec3.cross(A, new Vec3([1, 0, 0]));
+
+    // if(angle > 0) {
+    //   let rotQuat = Quat.fromAxisAngle(axis, angle).normalize();
+    //   newPos = rotQuat.multiplyVec3(this.position);
+    //   newEndp = rotQuat.multiplyVec3(this.endpoint);
+    //   pos = rotQuat.multiplyVec3(pos);
+    //   dir = rotQuat.multiplyVec3(dir);
+    //   dir.normalize();
+    // }
+
+    // Alignment with Matrices
+    let rotMat = this.zAxisAlignedCoords(newPos, newEndp);
+    newPos = rotMat.multiplyVec3(this.position);
+    newEndp = rotMat.multiplyVec3(this.endpoint);
+    pos = rotMat.multiplyVec3(pos);
+    dir = rotMat.multiplyVec3(dir);
     dir.normalize();
 
     pos = Vec3.difference(pos, newPos);
@@ -99,19 +123,51 @@ export class Bone {
     return tBody;
   }
 
+  // qtrans method from shader
+  public qtrans(q: Vec4, v: Vec3) {
+    let A = Vec3.difference(Vec3.cross(v, new Vec3(q.xyz)), v.scale(q.w));
+    let temp: Vec3 = Vec3.cross(A, new Vec3(q.xyz)).scale(2);
+    return temp;
+  }
+
   // Parameter is endpoint - position, since position
-  // is now equal to origin (position - position).
-  // Finds the rotation quaternion which rotates the p2-p1 
-  // vector to the z-axis
-  public zAxisAlignedCoords(pos: Vec3, endp: Vec3) : Quat {
-    // pos to endp = endp - pos
-    let A : Vec3 = Vec3.difference(endp, pos);
-    A.normalize();
-    let B : Vec3 = new Vec3([0, 0, 1]);
+  // is now equal to origin (position - position)
+  public zAxisAlignedCoords(newPosition: Vec3, newEndpoint: Vec3) : Mat3 {
     
-    let axis : Vec3 = Vec3.cross(A, B);
-    let angle : number = Math.acos(Vec3.dot(A, B));
-    return Quat.fromAxisAngle(axis, angle).normalize();
+    let z_axis = new Vec3([0, 0, 1]);
+    let y_axis = new Vec3([0, 1, 0]);
+    let x_axis = new Vec3([1, 0, 0]);
+
+    let target: Mat3 = new Mat3([
+      z_axis.x, z_axis.y, z_axis.z,
+      x_axis.x, x_axis.y, x_axis.z,
+      y_axis.x, y_axis.y, y_axis.z
+    ]);
+
+    // Actual orientation of X and Y doesn't matter as long as
+    // Z axis is formed with endpoint - position, and all vectors
+    // are orthogonal
+    let cylinderZ : Vec3 = Vec3.difference(newEndpoint, newPosition);
+    let cylinderY : Vec3 = Vec3.cross(cylinderZ, x_axis);
+    let cylinderX : Vec3 = Vec3.cross(cylinderZ, cylinderY);
+
+    cylinderX.normalize();
+    cylinderY.normalize();
+    cylinderZ.normalize();
+
+    // Matrix with cols cylinderX, Y, and Z is the rotation matrix
+    // of the cylinder. This can be interpreted as converting the
+    // world coordinates to the current coordinates of the cylinder.
+    // Thus the inverse should result in a matrix which transforms 
+    // from cylinder coordinates to world coordinates. 
+    let source: Mat3 = new Mat3([
+      cylinderZ.x, cylinderZ.y, cylinderZ.z,
+      cylinderX.x, cylinderX.y, cylinderX.z,
+      cylinderY.x, cylinderY.y, cylinderY.z
+    ]);
+
+    let rot: Mat3 = Mat3.product(target, source.inverse());
+    return rot;
   }
 
   private intersectBody(pos: Vec3, dir: Vec3, zMin: number, zMax: number): number {
@@ -165,7 +221,7 @@ export class Bone {
   }
 
   // Assumes t is greater than RAY_EPSILON
-  private rayAt(pos: Vec3, dir: Vec3, t: number): Vec3 {
+  public rayAt(pos: Vec3, dir: Vec3, t: number): Vec3 {
     return Vec3.sum(pos, dir.scale(t));
   }
 }
@@ -177,10 +233,13 @@ export class Mesh {
   public bones: Bone[];
   public materialName: string;
   public imgSrc: String | null;
+  public highlightedBone: Bone = null;
 
   private boneIndices: number[];
   private bonePositions: Float32Array;
   private boneIndexAttribute: Float32Array;
+
+  private d1: Mat4 = Mat4.identity;
 
   constructor(mesh: MeshLoader) {
     this.geometry = new MeshGeometry(mesh.geometry);
@@ -195,6 +254,14 @@ export class Mesh {
     this.boneIndices = Array.from(mesh.boneIndices);
     this.bonePositions = new Float32Array(mesh.bonePositions);
     this.boneIndexAttribute = new Float32Array(mesh.boneIndexAttribute);
+  }
+
+  public setBone(bone: Bone) {
+    this.highlightedBone = bone;
+  }
+
+  public getBone() {
+    return this.highlightedBone;
   }
 
   public getBoneIndices(): Uint32Array {
@@ -245,5 +312,47 @@ export class Mesh {
     });
 
     return highlights;
+  }
+
+  // Does too many unnecessary calculations
+  public update() {
+    this.bones.forEach((bone) => {
+      // let newRot: Mat4 = this.computeTransDi(bone, false);
+      // bone.rotation = newRot.toMat3().toQuat();
+      bone.rotation = this.recursiveRotMult(bone);
+      this.translate(bone);
+    })
+  }
+
+  public recursiveRotMult(bone: Bone): Quat {
+    if(bone.parent == -1) {
+      return bone.transI;
+    }
+
+    let parent: Quat = this.recursiveRotMult(this.bones[bone.parent]);
+    return Quat.product(parent, bone.transI);
+  }
+
+  public translate(bone: Bone) {
+    if(bone.parent != -1) {
+      let parentBone: Bone = this.bones[bone.parent];
+      Bji is translation by offset vector from joint j (in the rest pose) to joint i
+      let posI: Vec3 = bone.position;
+      let posJ: Vec3 = parentBone.endpoint;
+      // Offset Vector 
+      let vec: Vec3 = Vec3.difference(posJ, posI);
+      let transBji: Mat4 = new Mat4([
+        1, 0, 0, 0, 
+        0, 1, 0, 0, 
+        0, 0, 1, 0, 
+        vec.x, vec.y, vec.z, 1
+      ]);
+
+      let newPos: Vec4 = new Vec4([bone.position.x, bone.position.y, bone.position.z, 1]);
+      let newEndp: Vec4 = new Vec4([bone.endpoint.x, bone.endpoint.y, bone.endpoint.z, 1]);
+    
+      bone.position = new Vec3(transBji.multiplyVec4(newPos).xyz);
+      bone.endpoint = new Vec3(transBji.multiplyVec4(newEndp).xyz);
+    }
   }
 }
