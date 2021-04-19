@@ -32,13 +32,16 @@ export class GUI implements IGUI {
   private static readonly zoomSpeed: number = 0.1;
   private static readonly rollSpeed: number = 0.1;
   private static readonly panSpeed: number = 0.1;
+  private static readonly translateSpeed: number = 0.05;
 
   private camera: Camera;
   private dragging: boolean;
   private fps: boolean;
   private prevX: number;
   private prevY: number;
-  private canvasPadding: number;
+
+  public modeShift: boolean;
+  public hideBones: boolean;
 
   private height: number;
   private viewPortHeight: number;
@@ -69,7 +72,8 @@ export class GUI implements IGUI {
     this.prevY = 0;
 
     this.animation = animation;
-    this.canvasPadding = canvas.getBoundingClientRect().x;
+    this.modeShift = false;
+    this.hideBones = false;
 
     this.reset();
 
@@ -176,7 +180,6 @@ export class GUI implements IGUI {
   public drag(mouse: MouseEvent): void {
     let x = mouse.offsetX;
     let y = mouse.offsetY;
-    console.log("x: ", x, "y: ", y);
 
     if (this.dragging) {
       const dx = mouse.screenX - this.prevX;
@@ -196,13 +199,17 @@ export class GUI implements IGUI {
 
       let bone: Bone = this.animation.getScene().meshes[0].getBone();
       if(bone != null) {
-        // Rotate Bone
-        // Based on mouseDir, need to get quaternion that represents
-        // this rotation. Then just multiply bone with quat. 
-        let boneDir: Vec3 = Vec3.difference(bone.endpoint, bone.position);
-        mouseDir = new Vec3([-1 * mouseDir.x, mouseDir.y, 0]);
-        let axis: Vec3 = Vec3.cross(boneDir, mouseDir);
-        bone.rotate(GUI.rotationSpeed, axis);
+        mouseDir = new Vec3([-1 * mouseDir.x, -1 * mouseDir.y, 0]);
+        if(!this.modeShift) {
+          // Rotate Bone
+          // Based on mouseDir, need to get quaternion that represents
+          // this rotation. Then just multiply bone with quat. 
+          let boneDir: Vec3 = Vec3.difference(bone.endpoint, bone.position);
+          let axis: Vec3 = Vec3.cross(boneDir, mouseDir);
+          bone.rotate(GUI.rotationSpeed, axis);
+        } else {
+          this.animation.getScene().meshes[0].translateRoots(mouseDir, GUI.translateSpeed);
+        }
 
         this.animation.getScene().meshes[0].update();
       } else {
@@ -369,6 +376,10 @@ export class GUI implements IGUI {
         this.animation.setScene("/static/assets/skinning/wolf.dae");
         break;
       }
+      case "Digit8": {
+        this.animation.setScene("/static/assets/skinning/Soi_Armour_A.dae");
+        break;
+      }
       case "KeyW": {
         this.camera.offset(
           this.camera.forward().negate(),
@@ -394,6 +405,10 @@ export class GUI implements IGUI {
         this.numKeyFrames = 0;
         break;
       }
+      case "ShiftLeft": {
+        this.modeShift = !this.modeShift;
+        break;
+      }
       case "ArrowLeft": {
         this.camera.roll(GUI.rollSpeed, false);
         break;
@@ -408,6 +423,10 @@ export class GUI implements IGUI {
       }
       case "ArrowDown": {
         this.camera.offset(this.camera.up().negate(), GUI.zoomSpeed, true);
+        break;
+      }
+      case "Space": {
+        this.hideBones = !this.hideBones;
         break;
       }
       case "KeyK": {

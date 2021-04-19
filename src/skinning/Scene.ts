@@ -43,10 +43,13 @@ export class Bone {
   public position: Vec3; // current position of the bone's joint *in world coordinates*. Used by the provided skeleton shader, so you need to keep this up to date.
   public endpoint: Vec3; // current position of the bone's second (non-joint) endpoint, in world coordinates
   public rotation: Quat; // current orientation of the joint *with respect to world coordinates*
+
   public transI: Quat; // Ti
+  public transB: Mat4; // Bij
 
   public initialPosition: Vec3; // position of the bone's joint *in world coordinates*
   public initialEndpoint: Vec3; // position of the bone's second (non-joint) endpoint, in world coordinates
+  public length: number;
 
   public offset: number; // used when parsing the Collada file---you probably don't need to touch these
   public initialTransformation: Mat4;
@@ -55,7 +58,7 @@ export class Bone {
   public static NO_INTERSECT: number = Number.MAX_SAFE_INTEGER; // Max value 
   public static RADIUS: number = 0.1;
 
-  public isHighlighted : boolean = false;
+  public isHighlighted: boolean = false;
 
   constructor(bone: BoneLoader) {
     this.parent = bone.parent;
@@ -66,17 +69,18 @@ export class Bone {
     // Set to identity by the loader
     this.rotation = bone.rotation.copy();
     this.transI = bone.rotation.copy();
-    
+    this.transB = Mat4.identity.copy();
+
     this.offset = bone.offset;
     this.initialPosition = bone.initialPosition.copy();
     this.initialEndpoint = bone.initialEndpoint.copy();
+    this.length = Vec3.distance(this.initialPosition, this.initialEndpoint);
     this.initialTransformation = bone.initialTransformation.copy();
   }
 
   public rotate(rotSpeed: number, axis: Vec3) {
     this.transI = Quat.product(this.transI, Quat.fromAxisAngle(axis, rotSpeed));
   }
-
 
   // dir is normalized in Gui
   public intersect(pos: Vec3, dir: Vec3): number {
@@ -89,7 +93,7 @@ export class Bone {
     // maintain original ray-cylinder alignment.
     // let A : Vec3 = Vec3.difference(this.endpoint, this.position).normalize();
     // let B : Vec3 = new Vec3([0, 0, 1]);
-    
+
     // let axis : Vec3 = Vec3.cross(A, B);
     // let angle : number = Math.floor(Math.acos(Vec3.dot(A, B)));
     // if(angle == 180) // Cross product will be 0, so find another axis
@@ -132,8 +136,8 @@ export class Bone {
 
   // Parameter is endpoint - position, since position
   // is now equal to origin (position - position)
-  public zAxisAlignedCoords(newPosition: Vec3, newEndpoint: Vec3) : Mat3 {
-    
+  public zAxisAlignedCoords(newPosition: Vec3, newEndpoint: Vec3): Mat3 {
+
     let z_axis = new Vec3([0, 0, 1]);
     let y_axis = new Vec3([0, 1, 0]);
     let x_axis = new Vec3([1, 0, 0]);
@@ -147,9 +151,9 @@ export class Bone {
     // Actual orientation of X and Y doesn't matter as long as
     // Z axis is formed with endpoint - position, and all vectors
     // are orthogonal
-    let cylinderZ : Vec3 = Vec3.difference(newEndpoint, newPosition);
-    let cylinderY : Vec3 = Vec3.cross(cylinderZ, x_axis);
-    let cylinderX : Vec3 = Vec3.cross(cylinderZ, cylinderY);
+    let cylinderZ: Vec3 = Vec3.difference(newEndpoint, newPosition);
+    let cylinderY: Vec3 = Vec3.cross(cylinderZ, x_axis);
+    let cylinderX: Vec3 = Vec3.cross(cylinderZ, cylinderY);
 
     cylinderX.normalize();
     cylinderY.normalize();
@@ -201,7 +205,7 @@ export class Bone {
     let t1 = (-b - discriminant) / (2.0 * a);
 
     if (t1 > Bone.RAY_EPSILON) {
-      let P: Vec3 = this.rayAt(pos, dir, t1);
+      let P: Vec3 = Bone.rayAt(pos, dir, t1);
       let z = P.z;
       if (z >= zMin && z <= zMax) {
         return t1;
@@ -210,7 +214,7 @@ export class Bone {
 
     if (t2 > Bone.RAY_EPSILON) {
       // Two intersections.
-      let P: Vec3 = this.rayAt(pos, dir, t2);
+      let P: Vec3 = Bone.rayAt(pos, dir, t2);
       let z = P.z;
       if (z >= zMin && z <= zMax) {
         return t2;
@@ -221,7 +225,7 @@ export class Bone {
   }
 
   // Assumes t is greater than RAY_EPSILON
-  public rayAt(pos: Vec3, dir: Vec3, t: number): Vec3 {
+  public static rayAt(pos: Vec3, dir: Vec3, t: number): Vec3 {
     return Vec3.sum(pos, dir.scale(t));
   }
 }
@@ -239,21 +243,49 @@ export class Mesh {
   private bonePositions: Float32Array;
   private boneIndexAttribute: Float32Array;
 
-  private d1: Mat4 = Mat4.identity;
+  public rootBones: Bone[];
 
   constructor(mesh: MeshLoader) {
     this.geometry = new MeshGeometry(mesh.geometry);
     this.worldMatrix = mesh.worldMatrix.copy();
     this.rotation = mesh.rotation.copy();
+    
     this.bones = [];
+    this.rootBones = [];
     mesh.bones.forEach(bone => {
-      this.bones.push(new Bone(bone));
+      let newBone: Bone = new Bone(bone);
+      this.bones.push(newBone);
+      if(newBone.parent == -1)
+        this.rootBones.push(newBone);
     });
+    this.bones.forEach(newBone => {this.setTransB(newBone)});
+
     this.materialName = mesh.materialName;
     this.imgSrc = null;
     this.boneIndices = Array.from(mesh.boneIndices);
     this.bonePositions = new Float32Array(mesh.bonePositions);
     this.boneIndexAttribute = new Float32Array(mesh.boneIndexAttribute);
+  }
+
+  public setTransB(bone: Bone) {
+    let transBji: Mat4 = Mat4.identity.copy();
+    
+    let c: Vec3 = bone.initialPosition;
+    let p: Vec3 = new Vec3([0, 0, 0]);
+
+    if (bone.parent != -1) {
+      p = this.bones[bone.parent].initialPosition;
+    }
+
+    let vec: Vec3 = Vec3.difference(c, p);
+    //console.log(vec);
+    transBji = new Mat4([
+      1, 0, 0, 0,
+      0, 1, 0, 0,
+      0, 0, 1, 0,
+      vec.x, vec.y, vec.z, 1
+    ]);
+    bone.transB = transBji;
   }
 
   public setBone(bone: Bone) {
@@ -300,8 +332,8 @@ export class Mesh {
 
   public getBoneHighlights(): Float32Array {
     let highlights = new Float32Array(4 * this.bones.length);
-    let red : Vec4 = new Vec4([1.0, 0.0, 0.0, 1.0]);
-    let yellow : Vec4 = new Vec4([1.0, 1.0, 0.0, 1.0]);
+    let red: Vec4 = new Vec4([1.0, 0.0, 0.0, 1.0]);
+    let yellow: Vec4 = new Vec4([1.0, 1.0, 0.0, 1.0]);
 
     this.bones.forEach((bone, index) => {
       let color = bone.isHighlighted ? yellow.xyzw : red.xyzw;
@@ -314,18 +346,39 @@ export class Mesh {
     return highlights;
   }
 
+  getBlendingMatrices(): Float32Array {
+    let mat = new Float32Array(16 * this.bones.length);
+    this.bones.forEach((bone, index) => {
+      
+      let res = this.deformationMatrix(bone, true);
+      for (let i = 0; i < res.all().length; i++) {
+        mat[(16 * index) + i] = res.at(i);
+      }
+    });
+    return mat;
+  }
+
   // Does too many unnecessary calculations
   public update() {
     this.bones.forEach((bone) => {
-      // let newRot: Mat4 = this.computeTransDi(bone, false);
-      // bone.rotation = newRot.toMat3().toQuat();
+      // LIke V2 = V1 * T
       bone.rotation = this.recursiveRotMult(bone);
-      this.translate(bone);
+
+      let Di: Mat4 = this.deformationMatrix(bone, true);
+      bone.position = new Vec3(Di.multiplyVec4(new Vec4([0, 0, 0, 1])).xyz);
     })
   }
 
+  // Translates all root bones
+  public translateRoots(dir: Vec3, speed: number) {
+    this.rootBones.forEach(bone => {
+      bone.initialPosition = Bone.rayAt(bone.initialPosition, dir, speed);
+      this.setTransB(bone);
+    });
+  }
+
   public recursiveRotMult(bone: Bone): Quat {
-    if(bone.parent == -1) {
+    if (bone.parent == -1) {
       return bone.transI;
     }
 
@@ -333,26 +386,18 @@ export class Mesh {
     return Quat.product(parent, bone.transI);
   }
 
-  public translate(bone: Bone) {
-    if(bone.parent != -1) {
-      let parentBone: Bone = this.bones[bone.parent];
-      Bji is translation by offset vector from joint j (in the rest pose) to joint i
-      let posI: Vec3 = bone.position;
-      let posJ: Vec3 = parentBone.endpoint;
-      // Offset Vector 
-      let vec: Vec3 = Vec3.difference(posJ, posI);
-      let transBji: Mat4 = new Mat4([
-        1, 0, 0, 0, 
-        0, 1, 0, 0, 
-        0, 0, 1, 0, 
-        vec.x, vec.y, vec.z, 1
-      ]);
+  public deformationMatrix(bone: Bone, deformed: boolean): Mat4 {
+    // Di = Dj * Bji * Ti
+    let transI = deformed ? bone.transI.toMat4() : Mat4.identity.copy();
+    let transB = bone.transB;
 
-      let newPos: Vec4 = new Vec4([bone.position.x, bone.position.y, bone.position.z, 1]);
-      let newEndp: Vec4 = new Vec4([bone.endpoint.x, bone.endpoint.y, bone.endpoint.z, 1]);
-    
-      bone.position = new Vec3(transBji.multiplyVec4(newPos).xyz);
-      bone.endpoint = new Vec3(transBji.multiplyVec4(newEndp).xyz);
+    let temp = Mat4.product(transB, transI);
+
+    if (bone.parent == -1) {
+      return temp;
     }
+
+    let transD = this.deformationMatrix(this.bones[bone.parent], deformed);
+    return Mat4.product(transD, temp);
   }
 }

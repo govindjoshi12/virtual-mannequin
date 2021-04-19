@@ -42,7 +42,7 @@ export class SkinningAnimation extends CanvasAnimation {
 
   /* Scrub bar background rendering info */
   private sBackRenderPass: RenderPass;
-  
+
 
   /* Global Rendering Info */
   private lightPosition: Vec4;
@@ -69,7 +69,7 @@ export class SkinningAnimation extends CanvasAnimation {
 
     this.floorRenderPass = new RenderPass(this.extVAO, gl, floorVSText, floorFSText);
     this.sceneRenderPass = new RenderPass(this.extVAO, gl, sceneVSText, sceneFSText);
-    this.skeletonRenderPass = new RenderPass(this.extVAO, gl, skeletonVSText, skeletonFSText);    
+    this.skeletonRenderPass = new RenderPass(this.extVAO, gl, skeletonVSText, skeletonFSText);
 
     this.gui = new GUI(this.canvas2d, this);
     this.lightPosition = new Vec4([-10, 10, -10, 1]);
@@ -80,14 +80,14 @@ export class SkinningAnimation extends CanvasAnimation {
 
     // Status bar
     this.sBackRenderPass = new RenderPass(this.extVAO, gl, sBackVSText, sBackFSText);
-    
-    
+
+
     // TODO
     // Other initialization, for instance, for the bone highlighting
-    
+
     this.initGui();
 
-    
+
 
     this.millis = new Date().getTime();
   }
@@ -100,12 +100,12 @@ export class SkinningAnimation extends CanvasAnimation {
    * Setup the animation. This can be called again to reset the animation.
    */
   public reset(): void {
-      this.gui.reset();
-      this.setScene(this.loadedScene);
+    this.gui.reset();
+    this.setScene(this.loadedScene);
   }
 
   public initGui(): void {
-    
+
     // Status bar background
     let verts = new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]);
     this.sBackRenderPass.setIndexBufferData(new Uint32Array([1, 0, 2, 2, 0, 3]))
@@ -115,7 +115,7 @@ export class SkinningAnimation extends CanvasAnimation {
     this.sBackRenderPass.setDrawData(this.ctx.TRIANGLES, 6, this.ctx.UNSIGNED_INT, 0);
     this.sBackRenderPass.setup();
 
-    }
+  }
 
   public initScene(): void {
     if (this.scene.meshes.length === 0) { return; }
@@ -136,7 +136,7 @@ export class SkinningAnimation extends CanvasAnimation {
       fIndices[i] = i;
       fIndices[i + 1] = i + 1;
       fIndices[i + 2] = i + 2;
-    }    
+    }
     this.sceneRenderPass.setIndexBufferData(fIndices);
 
     this.sceneRenderPass.addAttribute("vertPosition", 3, this.ctx.FLOAT, false,
@@ -166,27 +166,27 @@ export class SkinningAnimation extends CanvasAnimation {
     this.sceneRenderPass.addUniform("lightPosition",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniform4fv(loc, this.lightPosition.xyzw);
-    });
+      });
     this.sceneRenderPass.addUniform("mWorld",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
-        gl.uniformMatrix4fv(loc, false, new Float32Array(new Mat4().setIdentity().all()));        
-    });
+        gl.uniformMatrix4fv(loc, false, new Float32Array(new Mat4().setIdentity().all()));
+      });
     this.sceneRenderPass.addUniform("mProj",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniformMatrix4fv(loc, false, new Float32Array(this.gui.projMatrix().all()));
-    });
+      });
     this.sceneRenderPass.addUniform("mView",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniformMatrix4fv(loc, false, new Float32Array(this.gui.viewMatrix().all()));
-    });
+      });
     this.sceneRenderPass.addUniform("jTrans",
-      (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {        
+      (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniform3fv(loc, this.scene.meshes[0].getBoneTranslations());
-    });
+      });
     this.sceneRenderPass.addUniform("jRots",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniform4fv(loc, this.scene.meshes[0].getBoneRotations());
-    });
+      });
 
     this.sceneRenderPass.setDrawData(this.ctx.TRIANGLES, this.scene.meshes[0].geometry.position.count, this.ctx.UNSIGNED_INT, 0);
     this.sceneRenderPass.setup();
@@ -206,35 +206,35 @@ export class SkinningAnimation extends CanvasAnimation {
     this.skeletonRenderPass.addUniform("mWorld",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniformMatrix4fv(loc, false, new Float32Array(Mat4.identity.all()));
-    });
+      });
     this.skeletonRenderPass.addUniform("mProj",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniformMatrix4fv(loc, false, new Float32Array(this.gui.projMatrix().all()));
-    });
+      });
     this.skeletonRenderPass.addUniform("mView",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniformMatrix4fv(loc, false, new Float32Array(this.gui.viewMatrix().all()));
-    });
+      });
     this.skeletonRenderPass.addUniform("bTrans",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniform3fv(loc, this.getScene().meshes[0].getBoneTranslations());
-    });
+      });
     this.skeletonRenderPass.addUniform("bRots",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniform4fv(loc, this.getScene().meshes[0].getBoneRotations());
-    });
+      });
 
     this.skeletonRenderPass.addUniform("bHighlights",
-    (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
-      gl.uniform4fv(loc, this.getScene().meshes[0].getBoneHighlights());
-    });
+      (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
+        gl.uniform4fv(loc, this.getScene().meshes[0].getBoneHighlights());
+      });
 
     this.skeletonRenderPass.setDrawData(this.ctx.LINES,
       this.scene.meshes[0].getBoneIndices().length, this.ctx.UNSIGNED_INT, 0);
     this.skeletonRenderPass.setup();
   }
 
-  
+
   /**
    * Sets up the floor drawing
    */
@@ -253,27 +253,27 @@ export class SkinningAnimation extends CanvasAnimation {
     this.floorRenderPass.addUniform("uLightPos",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniform4fv(loc, this.lightPosition.xyzw);
-    });
+      });
     this.floorRenderPass.addUniform("uWorld",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniformMatrix4fv(loc, false, new Float32Array(Mat4.identity.all()));
-    });
+      });
     this.floorRenderPass.addUniform("uProj",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniformMatrix4fv(loc, false, new Float32Array(this.gui.projMatrix().all()));
-    });
+      });
     this.floorRenderPass.addUniform("uView",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniformMatrix4fv(loc, false, new Float32Array(this.gui.viewMatrix().all()));
-    });
+      });
     this.floorRenderPass.addUniform("uProjInv",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniformMatrix4fv(loc, false, new Float32Array(this.gui.projMatrix().inverse().all()));
-    });
+      });
     this.floorRenderPass.addUniform("uViewInv",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
         gl.uniformMatrix4fv(loc, false, new Float32Array(this.gui.viewMatrix().inverse().all()));
-    });
+      });
 
     this.floorRenderPass.setDrawData(this.ctx.TRIANGLES, this.floor.indicesFlat().length, this.ctx.UNSIGNED_INT, 0);
     this.floorRenderPass.setup();
@@ -294,7 +294,7 @@ export class SkinningAnimation extends CanvasAnimation {
 
     // TODO
     // If the mesh is animating, probably you want to do some updating of the skeleton state here
-    
+
     // draw the status message
     if (this.ctx2) {
       this.ctx2.clearRect(0, 0, this.ctx2.canvas.width, this.ctx2.canvas.height);
@@ -316,13 +316,13 @@ export class SkinningAnimation extends CanvasAnimation {
     gl.cullFace(gl.BACK);
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); // null is the default frame buffer
-    this.drawScene(0, 200, 800, 600);    
+    this.drawScene(0, 200, 800, 600);
 
     /* Draw status bar */
     if (this.scene.meshes.length > 0) {
       gl.viewport(0, 0, 800, 200);
-      this.sBackRenderPass.draw();      
-    }    
+      this.sBackRenderPass.draw();
+    }
 
   }
 
@@ -336,19 +336,21 @@ export class SkinningAnimation extends CanvasAnimation {
     if (this.scene.meshes.length > 0) {
       this.sceneRenderPass.draw();
       gl.disable(gl.DEPTH_TEST);
-      this.skeletonRenderPass.draw();
-      
+
+      if(!this.getGUI().hideBones)
+        this.skeletonRenderPass.draw();
+
       // TODO
       // Also draw the highlighted bone (if applicable)
       // this.boneRenderPass.draw();
-      gl.enable(gl.DEPTH_TEST);      
+      gl.enable(gl.DEPTH_TEST);
     }
   }
 
   public getGUI(): GUI {
     return this.gui;
   }
-  
+
   /**
    * Loads and sets the scene from a Collada file
    * @param fileLocation URI for the Collada file
