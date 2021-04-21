@@ -89,7 +89,7 @@ export const sceneVSText = `
         //  Compute light direction and transform to camera coordinates
         lightDir = lightPosition - worldPosition;
         
-        vec4 aNorm4 = vec4(aNorm, 0.0);
+        vec4 aNorm4 = vec4(aNorm, 0.0) * blendedVertex;
         normal = normalize(mWorld * vec4(aNorm, 0.0));
 
         uv = aUV;

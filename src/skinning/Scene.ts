@@ -49,7 +49,9 @@ export class Bone {
 
   public initialPosition: Vec3; // position of the bone's joint *in world coordinates*
   public initialEndpoint: Vec3; // position of the bone's second (non-joint) endpoint, in world coordinates
-  public length: number;
+
+  //public rayDirection: Vec3;
+  //public length: number; 
 
   public offset: number; // used when parsing the Collada file---you probably don't need to touch these
   public initialTransformation: Mat4;
@@ -74,8 +76,10 @@ export class Bone {
     this.offset = bone.offset;
     this.initialPosition = bone.initialPosition.copy();
     this.initialEndpoint = bone.initialEndpoint.copy();
-    this.length = Vec3.distance(this.initialPosition, this.initialEndpoint);
     this.initialTransformation = bone.initialTransformation.copy();
+
+    //this.rayDirection = Vec3.difference(this.initialEndpoint, this.initialPosition)
+    //this.length = Vec3.distance(this.initialPosition, this.initialEndpoint);
   }
 
   public rotate(rotSpeed: number, axis: Vec3) {
@@ -125,13 +129,6 @@ export class Bone {
 
     let tBody = this.intersectBody(pos, dir, zMin, zMax);
     return tBody;
-  }
-
-  // qtrans method from shader
-  public qtrans(q: Vec4, v: Vec3) {
-    let A = Vec3.difference(Vec3.cross(v, new Vec3(q.xyz)), v.scale(q.w));
-    let temp: Vec3 = Vec3.cross(A, new Vec3(q.xyz)).scale(2);
-    return temp;
   }
 
   // Parameter is endpoint - position, since position
@@ -346,18 +343,6 @@ export class Mesh {
     return highlights;
   }
 
-  getBlendingMatrices(): Float32Array {
-    let mat = new Float32Array(16 * this.bones.length);
-    this.bones.forEach((bone, index) => {
-      
-      let res = this.deformationMatrix(bone, true);
-      for (let i = 0; i < res.all().length; i++) {
-        mat[(16 * index) + i] = res.at(i);
-      }
-    });
-    return mat;
-  }
-
   // Does too many unnecessary calculations
   public update() {
     this.bones.forEach((bone) => {
@@ -365,7 +350,11 @@ export class Mesh {
       bone.rotation = this.recursiveRotMult(bone);
 
       let Di: Mat4 = this.deformationMatrix(bone, true);
-      bone.position = new Vec3(Di.multiplyVec4(new Vec4([0, 0, 0, 1])).xyz);
+      let localBonePosition: Vec3 = Vec3.difference(bone.position, bone.position);
+      let localBoneEndpoint: Vec3 = Vec3.difference(bone.endpoint, bone.position);
+
+      bone.position = Di.multiplyPt3(localBonePosition);
+      //bone.endpoint = Di.multiplyPt3(localBoneEndpoint);
     })
   }
 
@@ -399,5 +388,24 @@ export class Mesh {
 
     let transD = this.deformationMatrix(this.bones[bone.parent], deformed);
     return Mat4.product(transD, temp);
+  }
+
+  // Given a list of quaternions, this method sets each
+  // bones rotation equal to its corresponding quaternion.
+  // Convention: Each quat is the corresponding bone's
+  // local rotation
+  public setNewRotations(rotList: Quat[]) {
+    rotList.forEach((rot, index) => {
+      this.bones[index].transI = rot;
+    });
+    this.update();
+  }
+
+  public getOrientations(): Quat[] {
+    let rots: Quat[] = [];
+    this.bones.forEach(bone => {
+      rots.push(bone.transI.copy());
+    });
+    return rots;
   }
 }

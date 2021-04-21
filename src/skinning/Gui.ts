@@ -48,6 +48,7 @@ export class GUI implements IGUI {
   private width: number;
 
   private animation: SkinningAnimation;
+  public keyframes: Quat[][];
 
   public time: number;
 
@@ -56,8 +57,6 @@ export class GUI implements IGUI {
 
   public hoverX: number = 0;
   public hoverY: number = 0;
-
-  public numKeyFrames: number = 0;
   /**
    *
    * @param canvas required to get the width and height of the canvas
@@ -72,6 +71,8 @@ export class GUI implements IGUI {
     this.prevY = 0;
 
     this.animation = animation;
+    this.keyframes = [];
+
     this.modeShift = false;
     this.hideBones = false;
 
@@ -83,14 +84,14 @@ export class GUI implements IGUI {
   public getNumKeyFrames(): number {
     // TODO
     // Used in the status bar in the GUI
-    return this.numKeyFrames;
+    return this.keyframes.length;
   }
   public getTime(): number { return this.time; }
 
   public getMaxTime(): number {
     // TODO
     // The animation should stop after the last keyframe
-    return 0;
+    return this.getNumKeyFrames() - 1;
   }
 
   /**
@@ -154,11 +155,9 @@ export class GUI implements IGUI {
 
     // TODO
     // Some logic to rotate the bones, instead of moving the camera, if there is a currently highlighted bone
-
     this.dragging = true;
     this.prevX = mouse.screenX;
     this.prevY = mouse.screenY;
-
   }
 
   public incrementTime(dT: number): void {
@@ -169,6 +168,10 @@ export class GUI implements IGUI {
         this.mode = Mode.edit;
       }
     }
+  }
+
+  public playback() : boolean{
+    return this.mode == Mode.playback;
   }
 
   /**
@@ -198,14 +201,13 @@ export class GUI implements IGUI {
       }
 
       let bone: Bone = this.animation.getScene().meshes[0].getBone();
-      if(bone != null) {
+      if (bone != null) {
         mouseDir = new Vec3([-1 * mouseDir.x, -1 * mouseDir.y, 0]);
-        if(!this.modeShift) {
+        if (!this.modeShift) {
           // Rotate Bone
           // Based on mouseDir, need to get quaternion that represents
           // this rotation. Then just multiply bone with quat. 
-          let boneDir: Vec3 = Vec3.difference(bone.endpoint, bone.position);
-          let axis: Vec3 = Vec3.cross(boneDir, mouseDir);
+          let axis: Vec3 = Vec3.cross(this.camera.forward(), mouseDir);
           bone.rotate(GUI.rotationSpeed, axis);
         } else {
           this.animation.getScene().meshes[0].translateRoots(mouseDir, GUI.translateSpeed);
@@ -217,7 +219,7 @@ export class GUI implements IGUI {
           case 1: {
             let rotAxis: Vec3 = Vec3.cross(this.camera.forward(), mouseDir);
             rotAxis = rotAxis.normalize();
-  
+
             if (this.fps) {
               this.camera.rotate(rotAxis, GUI.rotationSpeed);
             } else {
@@ -242,11 +244,11 @@ export class GUI implements IGUI {
       // 2) To rotate a bone, if the mouse button is pressed and currently highlighting a bone.
       let pos: Vec3 = this.camera.pos();
       let dir: Vec3 = this.unproject(x, y);
-  
+
       let bones: Bone[] = this.animation.getScene().meshes[0].bones;
       let currBone: Bone = null;
       let currTime: number = Bone.NO_INTERSECT;
-  
+
       for (let i = 0; i < bones.length; i++) {
         // intersect each bone with ray
         let t = bones[i].intersect(pos, dir);
@@ -258,15 +260,15 @@ export class GUI implements IGUI {
             hl = true;
           }
         }
-  
-        if(!hl)
+
+        if (!hl)
           this.removeHighlight(bones[i]);
-      }
-  
+        }
+
       // Highlights everytime, but technically,
       // check to see if it's highlight will 
       // also happen everytime. 
-      if(currBone != null)
+      if (currBone != null)
         this.highlight(currBone);
     }
   }
@@ -283,23 +285,23 @@ export class GUI implements IGUI {
 
   // Unproject Screen Coordinates to World Coordinates
   // and return a vector from camera eye to that point
-  public unproject(x: number, y: number) : Vec3 {
+  public unproject(x: number, y: number): Vec3 {
     // mouseNDC = ((2x/w)-1, 1-(2y/h), -1);
     // mouseW = inv(V) * inv(P) * mouseNDC
     // raydir = (mouseW / mouseW[3]) - eye
     // raypos = eye
 
-    let newX : number = ((2 * x) / this.width) - 1;
-    let newY : number = 1 - ((2 * y) / this.viewPortHeight);
+    let newX: number = ((2 * x) / this.width) - 1;
+    let newY: number = 1 - ((2 * y) / this.viewPortHeight);
 
-    let mouseNDC : Vec4 = new Vec4([newX, newY, -1, 1]);
+    let mouseNDC: Vec4 = new Vec4([newX, newY, -1, 1]);
 
     let invV = this.viewMatrix().inverse();
     let invP = this.projMatrix().inverse();
-  
-    let mouseWorld : Vec4 = invV.multiplyVec4(invP.multiplyVec4(mouseNDC));
+
+    let mouseWorld: Vec4 = invV.multiplyVec4(invP.multiplyVec4(mouseNDC));
     mouseWorld.scale(1 / mouseWorld.w);
-    
+
     let rayDir = new Vec3(mouseWorld.xyz);
     rayDir = Vec3.difference(rayDir, this.camera.pos());
     rayDir.normalize();
@@ -377,7 +379,11 @@ export class GUI implements IGUI {
         break;
       }
       case "Digit8": {
-        this.animation.setScene("/static/assets/skinning/Soi_Armour_A.dae");
+        this.animation.setScene("/static/assets/skinning/table.dae");
+        break;
+      }
+      case "Digit9": {
+        //this.animation.setScene("/static/assets/skinning/Soi_Armour_A.dae");
         break;
       }
       case "KeyW": {
@@ -402,7 +408,7 @@ export class GUI implements IGUI {
       }
       case "KeyR": {
         this.animation.reset();
-        this.numKeyFrames = 0;
+        this.keyframes = [];
         break;
       }
       case "ShiftLeft": {
@@ -431,13 +437,9 @@ export class GUI implements IGUI {
       }
       case "KeyK": {
         if (this.mode === Mode.edit) {
-          // TODO
-          this.numKeyFrames++;
-          //console.log("Number of Key Frames:", numKeyFrames);
-          for (let i = 0; i < this.getNumKeyFrames(); i++) {
-
-          }
           // Add keyframe
+          let rots: Quat[] = this.animation.getScene().meshes[0].getOrientations();
+          this.keyframes.push(rots);
         }
         break;
       }
@@ -445,6 +447,7 @@ export class GUI implements IGUI {
         if (this.mode === Mode.edit && this.getNumKeyFrames() > 1) {
           this.mode = Mode.playback;
           this.time = 0;
+
         } else if (this.mode === Mode.playback) {
           this.mode = Mode.edit;
         }
@@ -455,6 +458,29 @@ export class GUI implements IGUI {
         break;
       }
     }
+  }
+
+  public interpolate() {
+    let currentKey: number = Math.floor(this.time);
+    if(currentKey + 1 >= this.getNumKeyFrames())
+      this.mode = Mode.edit;
+
+    let timeInterval: number = this.time - currentKey;
+
+    let model1: Quat[] = this.keyframes[currentKey];
+    let model2: Quat[] = this.keyframes[currentKey + 1];
+
+    let resultQuats: Quat[] = [];
+    for (let j = 0; j < model1.length; j++) {
+
+      let q1: Quat = model1[j];
+      let q2: Quat = model2[j];
+
+      let resultQuat = Quat.slerp(q1, q2, timeInterval);
+      resultQuats.push(resultQuat);
+    }
+    // Update Animation
+    this.animation.getScene().meshes[0].setNewRotations(resultQuats);
   }
 
   /**

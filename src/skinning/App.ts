@@ -294,6 +294,8 @@ export class SkinningAnimation extends CanvasAnimation {
 
     // TODO
     // If the mesh is animating, probably you want to do some updating of the skeleton state here
+    if(this.getGUI().playback())
+      this.getGUI().interpolate();
 
     // draw the status message
     if (this.ctx2) {
@@ -359,6 +361,7 @@ export class SkinningAnimation extends CanvasAnimation {
     this.loadedScene = fileLocation;
     this.scene = new CLoader(fileLocation);
     this.scene.load(() => this.initScene());
+    this.getGUI().keyframes = [];
   }
 }
 
@@ -368,4 +371,5 @@ export function initializeCanvas(): void {
   const canvasAnimation: SkinningAnimation = new SkinningAnimation(canvas);
   canvasAnimation.start();
   canvasAnimation.setScene("/static/assets/skinning/split_cube.dae");
+  // this.ctx.getImageData(this.x, this.y, this.width, this.height);
 }
