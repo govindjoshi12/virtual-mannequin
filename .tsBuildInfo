@@ -1282,7 +1282,7 @@
         "affectsGlobalScope": false
       },
       "./src/skinning/scene.ts": {
-        "version": "f0497ca04270903fc50e7cd211deaa87ee00828dbff7a65359bc99ab367c7ce7",
+        "version": "c6fdb7fb4987b7335163c2dde8d99d507ee1000545eb4f55c90dbc4beeb05e71",
         "signature": "d3faf25ef36281bfbd86d9d0586cab1811c72eee8e870ad497c798773e369c1b",
         "affectsGlobalScope": false
       },
@@ -1317,18 +1317,18 @@
         "affectsGlobalScope": false
       },
       "./src/skinning/gui.ts": {
-        "version": "3fa277ea4eafd05a3f0aa231c34fd654ec4092f297de8de76e915e9d93b1b88c",
-        "signature": "636deb01f3207754a0ecabbedbe90c472d0ee39ea153035a02a0eec4d3b8e78c",
+        "version": "bc7dd1ff22a1b1e89d535c9b06538ee2f94981e421d7a5901d8107fc68809678",
+        "signature": "2143585425f94205e6a266f1fe2780f601c74402735ae3904fcf5f66db279410",
         "affectsGlobalScope": false
       },
       "./src/skinning/shaders.ts": {
-        "version": "cdec7ca2530b289500e6df9b02c4d1ed9b086426e6a85022232cb525835a36e1",
-        "signature": "bf1a06a5c0ce19b917172d632044991fcd28bb51b2a5c0af1f74130fbac8d77a",
+        "version": "ccc47b496a4b9a0a6e20cc82b99049a7850391dc9e7f5ed9800074f0e0a0e095",
+        "signature": "94db40f2462ffde44135906d8a69e199de710b19fb86a783e741bf34c3d38b64",
         "affectsGlobalScope": false
       },
       "./src/skinning/app.ts": {
-        "version": "6a28f4b3c0c0bbd1356d4b0278f2ac5f10e759a2a8de952182d6f7fa978be867",
-        "signature": "9ed2fb1ec4daa825e3d4344c6fbd4da02087823e66531eacb6cdcdda8c465f97",
+        "version": "f3ac76a4e3ea7459170d9ac5ad17aaecfcdfb765e2f3b36cfe9b23ddbaa84ba3",
+        "signature": "530f24bc46311d34b7976131b8916d92ffae4c7411a1e2434ffb547d4ead5179",
         "affectsGlobalScope": false
       },
       "./src/skinning/index.ts": {

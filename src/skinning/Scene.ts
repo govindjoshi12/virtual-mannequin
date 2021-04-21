@@ -1,5 +1,6 @@
 import { Mat2, Mat3, Mat4, Quat, Vec3, Vec4 } from "../lib/TSM.js";
 import { AttributeLoader, MeshGeometryLoader, BoneLoader, MeshLoader } from "./AnimationFileLoader.js";
+import { GUI } from "./Gui.js";
 
 export class Attribute {
   values: Float32Array;
@@ -49,9 +50,7 @@ export class Bone {
 
   public initialPosition: Vec3; // position of the bone's joint *in world coordinates*
   public initialEndpoint: Vec3; // position of the bone's second (non-joint) endpoint, in world coordinates
-
-  //public rayDirection: Vec3;
-  //public length: number; 
+  public length: number; 
 
   public offset: number; // used when parsing the Collada file---you probably don't need to touch these
   public initialTransformation: Mat4;
@@ -78,8 +77,7 @@ export class Bone {
     this.initialEndpoint = bone.initialEndpoint.copy();
     this.initialTransformation = bone.initialTransformation.copy();
 
-    //this.rayDirection = Vec3.difference(this.initialEndpoint, this.initialPosition)
-    //this.length = Vec3.distance(this.initialPosition, this.initialEndpoint);
+    this.length = Vec3.distance(this.initialPosition, this.initialEndpoint);
   }
 
   public rotate(rotSpeed: number, axis: Vec3) {
@@ -202,7 +200,7 @@ export class Bone {
     let t1 = (-b - discriminant) / (2.0 * a);
 
     if (t1 > Bone.RAY_EPSILON) {
-      let P: Vec3 = Bone.rayAt(pos, dir, t1);
+      let P: Vec3 = GUI.rayAt(pos, dir, t1);
       let z = P.z;
       if (z >= zMin && z <= zMax) {
         return t1;
@@ -211,7 +209,7 @@ export class Bone {
 
     if (t2 > Bone.RAY_EPSILON) {
       // Two intersections.
-      let P: Vec3 = Bone.rayAt(pos, dir, t2);
+      let P: Vec3 = GUI.rayAt(pos, dir, t2);
       let z = P.z;
       if (z >= zMin && z <= zMax) {
         return t2;
@@ -219,11 +217,6 @@ export class Bone {
     }
 
     return Bone.NO_INTERSECT;
-  }
-
-  // Assumes t is greater than RAY_EPSILON
-  public static rayAt(pos: Vec3, dir: Vec3, t: number): Vec3 {
-    return Vec3.sum(pos, dir.scale(t));
   }
 }
 
@@ -285,6 +278,32 @@ export class Mesh {
     bone.transB = transBji;
   }
 
+  // Translates all root bones
+  public translateRoots(pos: Vec3[], dir: Vec3, time: number) {
+    let dirNormal: Vec3 = new Vec3([0, 0, 0]);
+    dir.normalize(dirNormal);
+
+    this.rootBones.forEach((bone, index) => {
+      bone.initialPosition = GUI.rayAt(pos[index], dir, time);
+
+      // Highlighting relies on endpoint, which relies on initialEndpoint
+      // Need to adjust endpoint each time initialPosition is adjusted
+
+      // This is a bug: To hide it, I just highlight the entire skeleton
+      bone.initialEndpoint = GUI.rayAt(bone.initialPosition, dirNormal, bone.length);
+      this.setTransB(bone);    
+    });
+  }
+
+  // Root Positions
+  public getRootPositions(): Vec3[] {
+    let result: Vec3[] = [];
+    this.rootBones.forEach(bone => {
+      result.push(bone.initialPosition);
+    })
+    return result;
+  }
+
   public setBone(bone: Bone) {
     this.highlightedBone = bone;
   }
@@ -327,13 +346,21 @@ export class Mesh {
     return trans;
   }
 
-  public getBoneHighlights(): Float32Array {
+  public getBoneHighlights(translating: boolean): Float32Array {
     let highlights = new Float32Array(4 * this.bones.length);
     let red: Vec4 = new Vec4([1.0, 0.0, 0.0, 1.0]);
-    let yellow: Vec4 = new Vec4([1.0, 1.0, 0.0, 1.0]);
+    
+    // Highlight Green if translating, Yellow if rotating
+    let highlight: Vec4 = translating ? new Vec4([0.0, 1.0, 0.0, 1.0])
+                                      : new Vec4([1.0, 1.0, 0.0, 1.0]);
 
     this.bones.forEach((bone, index) => {
-      let color = bone.isHighlighted ? yellow.xyzw : red.xyzw;
+      let color = bone.isHighlighted ? highlight.xyzw : red.xyzw;
+      
+      // This is the "hack" for having broken root bone highlighting;
+      // Just highlight everything if translating and hold one bone
+      if(this.highlightedBone != null && translating)
+        color = highlight.xyzw;
 
       for (let i = 0; i < color.length; i++) {
         highlights[4 * index + i] = color[i];
@@ -343,6 +370,8 @@ export class Mesh {
     return highlights;
   }
 
+  /* Bone Deformation Calculations */
+
   // Does too many unnecessary calculations
   public update() {
     this.bones.forEach((bone) => {
@@ -350,20 +379,12 @@ export class Mesh {
       bone.rotation = this.recursiveRotMult(bone);
 
       let Di: Mat4 = this.deformationMatrix(bone, true);
-      let localBonePosition: Vec3 = Vec3.difference(bone.position, bone.position);
-      let localBoneEndpoint: Vec3 = Vec3.difference(bone.endpoint, bone.position);
+      let localBonePosition: Vec3 = Vec3.difference(bone.initialPosition, bone.initialPosition);
+      let localBoneEndpoint: Vec3 = Vec3.difference(bone.initialEndpoint, bone.initialPosition);
 
       bone.position = Di.multiplyPt3(localBonePosition);
-      //bone.endpoint = Di.multiplyPt3(localBoneEndpoint);
+      bone.endpoint = Di.multiplyPt3(localBoneEndpoint);
     })
-  }
-
-  // Translates all root bones
-  public translateRoots(dir: Vec3, speed: number) {
-    this.rootBones.forEach(bone => {
-      bone.initialPosition = Bone.rayAt(bone.initialPosition, dir, speed);
-      this.setTransB(bone);
-    });
   }
 
   public recursiveRotMult(bone: Bone): Quat {
@@ -390,22 +411,60 @@ export class Mesh {
     return Mat4.product(transD, temp);
   }
 
+  /* Animation Methods */
+
   // Given a list of quaternions, this method sets each
   // bones rotation equal to its corresponding quaternion.
   // Convention: Each quat is the corresponding bone's
   // local rotation
-  public setNewRotations(rotList: Quat[]) {
+  public setKeyframe(keyframe: Keyframe) {
+    let rotList: Quat[] = keyframe.getRotations();
+    let transList: Mat4[] = keyframe.getTranslations();
+
     rotList.forEach((rot, index) => {
       this.bones[index].transI = rot;
     });
+
+    transList.forEach((trans, index) => {
+      this.rootBones[index].transB = trans;
+    });
+
     this.update();
   }
 
-  public getOrientations(): Quat[] {
+  public getKeyframe(): Keyframe {
     let rots: Quat[] = [];
     this.bones.forEach(bone => {
       rots.push(bone.transI.copy());
     });
-    return rots;
+    
+    let trans: Mat4[] = []
+    this.rootBones.forEach(bone => {
+      trans.push(bone.transB.copy());
+    })
+
+    return new Keyframe(rots, trans);
+  }
+}
+
+// Data Structure which represents a current keyframe
+// The indices of each element in rotations maps one-to-one
+// with the scene corresponding to the Keyframe.
+// A Keyframe is immutable, cannot change it after it's created.
+export class Keyframe {
+  private rotations: Quat[]; // Each bone's rotation
+  private translations: Mat4[]; // Root Bone Translations
+
+  constructor(rots: Quat[], trans: Mat4[]) {
+    this.rotations = rots;
+    this.translations = trans;
+  }
+
+  public getRotations(): Quat[] {
+    return this.rotations;
+  }
+
+  public getTranslations(): Mat4[] {
+    return this.translations;
   }
 }

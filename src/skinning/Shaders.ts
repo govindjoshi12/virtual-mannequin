@@ -77,6 +77,10 @@ export const sceneVSText = `
         return weight * vec3(jTrans[index] + qtrans(jRots[index], vertPos.xyz));
     }
 
+    vec3 weightedNormals(int index, float weight, vec3 normal) {
+        return weight * vec3(qtrans(jRots[index], normal));
+    }
+
     void main () {
         vec4 blendedVertex = vec4((weightedPos(int(skinIndices.x), skinWeights.x, v0)
                             + weightedPos(int(skinIndices.y), skinWeights.y, v1)
@@ -89,8 +93,11 @@ export const sceneVSText = `
         //  Compute light direction and transform to camera coordinates
         lightDir = lightPosition - worldPosition;
         
-        vec4 aNorm4 = vec4(aNorm, 0.0) * blendedVertex;
-        normal = normalize(mWorld * vec4(aNorm, 0.0));
+        vec4 aNorm4 = vec4((weightedNormals(int(skinIndices.x), skinWeights.x, aNorm)
+                        + weightedNormals(int(skinIndices.y), skinWeights.y, aNorm)
+                        + weightedNormals(int(skinIndices.z), skinWeights.z, aNorm)
+                        + weightedNormals(int(skinIndices.w), skinWeights.w, aNorm)), 0.0);
+        normal = normalize(mWorld * aNorm4);
 
         uv = aUV;
     }

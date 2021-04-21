@@ -2,7 +2,7 @@ import { Camera } from "../lib/webglutils/Camera.js";
 import { CanvasAnimation } from "../lib/webglutils/CanvasAnimation.js";
 import { SkinningAnimation } from "./App.js";
 import { Mat4, Vec3, Vec4, Vec2, Mat2, Quat } from "../lib/TSM.js";
-import { Bone, Mesh } from "./Scene.js";
+import { Bone, Mesh, Keyframe } from "./Scene.js";
 import { RenderPass } from "../lib/webglutils/RenderPass.js";
 
 /**
@@ -35,7 +35,7 @@ export class GUI implements IGUI {
   private static readonly translateSpeed: number = 0.05;
 
   private camera: Camera;
-  private dragging: boolean;
+  private dragging: boolean; 
   private fps: boolean;
   private prevX: number;
   private prevY: number;
@@ -48,12 +48,17 @@ export class GUI implements IGUI {
   private width: number;
 
   private animation: SkinningAnimation;
-  public keyframes: Quat[][];
+  public keyframes: Keyframe[];
+  public keyframeSpeedScale: number;
+  public loop: boolean;
 
   public time: number;
-
   public mode: Mode;
 
+  public boxDiv: string = "keyframe-box";
+  public amountDiv: string = "amount";
+  public fpsToggle: string = "fps"
+  public loopToggle: string = "loop";
 
   public hoverX: number = 0;
   public hoverY: number = 0;
@@ -72,6 +77,7 @@ export class GUI implements IGUI {
 
     this.animation = animation;
     this.keyframes = [];
+    this.getUIInputs();
 
     this.modeShift = false;
     this.hideBones = false;
@@ -81,17 +87,14 @@ export class GUI implements IGUI {
     this.registerEventListeners(canvas);
   }
 
-  public getNumKeyFrames(): number {
-    // TODO
-    // Used in the status bar in the GUI
-    return this.keyframes.length;
-  }
-  public getTime(): number { return this.time; }
-
-  public getMaxTime(): number {
-    // TODO
-    // The animation should stop after the last keyframe
-    return this.getNumKeyFrames() - 1;
+  public getUIInputs() {
+    let speedInp = document.getElementById(this.amountDiv) as HTMLInputElement;
+    let fpsTog = document.getElementById(this.fpsToggle) as HTMLInputElement;
+    let loopTog = document.getElementById(this.loopToggle) as HTMLInputElement;
+    
+    this.keyframeSpeedScale = parseFloat(speedInp.value);
+    this.fps = fpsTog.checked;
+    this.loop = loopTog.checked;
   }
 
   /**
@@ -143,6 +146,57 @@ export class GUI implements IGUI {
     return this.camera.projMatrix();
   }
 
+  // Returns the mesh at index
+  public getMesh(index: number): Mesh {
+    return this.animation.getScene().meshes[index];
+  }
+
+  public translating(): boolean {
+    return this.modeShift;
+  }
+
+  /* Animation Methods */
+  public getNumKeyFrames(): number {
+    // TODO
+    // Used in the status bar in the GUI
+    return this.keyframes.length;
+  }
+  public getTime(): number { return this.time; }
+
+  public getMaxTime(): number {
+    // TODO
+    // The animation should stop after the last keyframe
+    return this.loop ? Number.MAX_VALUE : ((this.getNumKeyFrames() - 1) * this.keyframeSpeedScale);
+  }
+
+  public incrementTime(dT: number): void {
+    // Carpet bombing approach to getting current screen inputs
+    this.getUIInputs();
+
+    if (this.mode === Mode.playback) {
+      this.time += dT;
+      if (this.time >= this.getMaxTime()) {
+        this.time = 0;
+        this.mode = Mode.edit;
+      }
+    }
+  }
+
+  public playback() : boolean{
+    return this.mode == Mode.playback;
+  }
+
+  public getModeString(): string {
+    switch (this.mode) {
+      case Mode.edit: { return "edit: " + this.getNumKeyFrames() + " keyframes"; }
+      case Mode.playback: { 
+        let str = "playback: " + this.getTime().toFixed(2) + " / ";
+        str += this.loop ? "∞" : this.getMaxTime().toFixed(2); 
+        return str;
+      }
+    }
+  }
+
   /**
    * Callback function for the start of a drag event.
    * @param mouse
@@ -158,20 +212,6 @@ export class GUI implements IGUI {
     this.dragging = true;
     this.prevX = mouse.screenX;
     this.prevY = mouse.screenY;
-  }
-
-  public incrementTime(dT: number): void {
-    if (this.mode === Mode.playback) {
-      this.time += dT;
-      if (this.time >= this.getMaxTime()) {
-        this.time = 0;
-        this.mode = Mode.edit;
-      }
-    }
-  }
-
-  public playback() : boolean{
-    return this.mode == Mode.playback;
   }
 
   /**
@@ -200,8 +240,8 @@ export class GUI implements IGUI {
         return;
       }
 
-      let bone: Bone = this.animation.getScene().meshes[0].getBone();
-      if (bone != null) {
+      let bone: Bone = this.getMesh(0).getBone();
+      if (bone != null && this.mode != Mode.playback) {
         mouseDir = new Vec3([-1 * mouseDir.x, -1 * mouseDir.y, 0]);
         if (!this.modeShift) {
           // Rotate Bone
@@ -210,10 +250,11 @@ export class GUI implements IGUI {
           let axis: Vec3 = Vec3.cross(this.camera.forward(), mouseDir);
           bone.rotate(GUI.rotationSpeed, axis);
         } else {
-          this.animation.getScene().meshes[0].translateRoots(mouseDir, GUI.translateSpeed);
+          let pos: Vec3[] = this.getMesh(0).getRootPositions();
+          this.getMesh(0).translateRoots(pos, mouseDir, GUI.translateSpeed);
         }
 
-        this.animation.getScene().meshes[0].update();
+        this.getMesh(0).update();
       } else {
         switch (mouse.buttons) {
           case 1: {
@@ -245,7 +286,7 @@ export class GUI implements IGUI {
       let pos: Vec3 = this.camera.pos();
       let dir: Vec3 = this.unproject(x, y);
 
-      let bones: Bone[] = this.animation.getScene().meshes[0].bones;
+      let bones: Bone[] = this.getMesh(0).bones;
       let currBone: Bone = null;
       let currTime: number = Bone.NO_INTERSECT;
 
@@ -275,12 +316,12 @@ export class GUI implements IGUI {
 
   public highlight(bone: Bone) {
     bone.isHighlighted = true;
-    this.animation.getScene().meshes[0].setBone(bone);
+    this.getMesh(0).setBone(bone);
   }
 
   public removeHighlight(bone: Bone) {
     bone.isHighlighted = false;
-    this.animation.getScene().meshes[0].setBone(null);
+    this.getMesh(0).setBone(null);
   }
 
   // Unproject Screen Coordinates to World Coordinates
@@ -309,13 +350,6 @@ export class GUI implements IGUI {
     return rayDir;
   }
 
-  public getModeString(): string {
-    switch (this.mode) {
-      case Mode.edit: { return "edit: " + this.getNumKeyFrames() + " keyframes"; }
-      case Mode.playback: { return "playback: " + this.getTime().toFixed(2) + " / " + this.getMaxTime().toFixed(2); }
-    }
-  }
-
   /**
    * Callback function for the end of a drag event
    * @param mouse
@@ -324,12 +358,11 @@ export class GUI implements IGUI {
     this.dragging = false;
     this.prevX = 0;
     this.prevY = 0;
-
-    // TODO
-    // Ask in office hours (how drag actually works)
     // Maybe your bone highlight/dragging logic needs to do stuff here too
   }
 
+  /*
+  // Zoom with Scroll Wheel
   public zoom(wheel: WheelEvent): void {
     let deltaX = wheel.deltaX;
     let deltaY = wheel.deltaY;
@@ -343,6 +376,7 @@ export class GUI implements IGUI {
     }
     //console.log("Scroll amount: " + deltaY);
   }
+*/
 
   /**
    * Callback function for a key press event
@@ -379,11 +413,11 @@ export class GUI implements IGUI {
         break;
       }
       case "Digit8": {
-        this.animation.setScene("/static/assets/skinning/table.dae");
+        this.animation.setScene("/static/assets/skinning/mob.dae");
         break;
       }
       case "Digit9": {
-        //this.animation.setScene("/static/assets/skinning/Soi_Armour_A.dae");
+        this.animation.setScene("/static/assets/skinning/spy.dae");
         break;
       }
       case "KeyW": {
@@ -407,8 +441,10 @@ export class GUI implements IGUI {
         break;
       }
       case "KeyR": {
+        // Reset animation and Keyframes
         this.animation.reset();
         this.keyframes = [];
+        document.getElementById(this.boxDiv).innerHTML = '';
         break;
       }
       case "ShiftLeft": {
@@ -438,8 +474,12 @@ export class GUI implements IGUI {
       case "KeyK": {
         if (this.mode === Mode.edit) {
           // Add keyframe
-          let rots: Quat[] = this.animation.getScene().meshes[0].getOrientations();
-          this.keyframes.push(rots);
+          let keyframe: Keyframe = this.getMesh(0).getKeyframe();
+          this.keyframes.push(keyframe);
+
+          // TODO:
+          // Set Camera to "initial position", take image, then reset camera to current position.
+          this.animation.drawImage(document.getElementById(this.boxDiv));
         }
         break;
       }
@@ -460,27 +500,79 @@ export class GUI implements IGUI {
     }
   }
 
+
   public interpolate() {
-    let currentKey: number = Math.floor(this.time);
-    if(currentKey + 1 >= this.getNumKeyFrames())
-      this.mode = Mode.edit;
+    let scaledTime = this.time * (1 / this.keyframeSpeedScale);
+    let currentKey: number = (Math.floor(scaledTime)) % this.getNumKeyFrames();
 
-    let timeInterval: number = this.time - currentKey;
+    let idx1 = currentKey;
+    let idx2 = currentKey + 1;
 
-    let model1: Quat[] = this.keyframes[currentKey];
-    let model2: Quat[] = this.keyframes[currentKey + 1];
-
-    let resultQuats: Quat[] = [];
-    for (let j = 0; j < model1.length; j++) {
-
-      let q1: Quat = model1[j];
-      let q2: Quat = model2[j];
-
-      let resultQuat = Quat.slerp(q1, q2, timeInterval);
-      resultQuats.push(resultQuat);
+    if(currentKey + 1 >= this.getNumKeyFrames()) {
+      if(this.loop) {
+        // Loop from end of list back to beginning
+        idx2 = 0;
+      } else {
+        this.mode = Mode.edit;
+        return;
+      }
     }
+
+    // Was inititally using scaledTime - currentKey
+    // Because this would remove the integer portion.
+    // However, with loop this doesn't work, so I
+    // am using a different operation
+    let timeInterval: number = scaledTime % 1;
+
+    let model1: Keyframe = this.keyframes[idx1];
+    let model2: Keyframe = this.keyframes[idx2];
+
+    // Find the SLERP interpolation of each bone's quaternions
+    // from position in rots1 to position in rots2
+    let rots1: Quat[] = model1.getRotations();
+    let rots2: Quat[] = model2.getRotations();
+    let resultQuats: Quat[] = [];
+    for (let j = 0; j < rots1.length; j++) {
+      let q1: Quat = rots1[j];
+      let q2: Quat = rots2[j];
+
+      resultQuats.push(Quat.slerp(q1, q2, timeInterval));
+    }
+
+    /*
+      Each root will be translated by same amount in
+      same direction, so can just use info from one
+      root to set new transBs.
+    */
+    let trans1: Mat4[] = model1.getTranslations();
+    let trans2: Mat4 = model2.getTranslations()[0];
+    let resultMats: Mat4[] = [];
+
+    // Get translation columns
+    // This is the current value of the bone's initial pos
+    let posArr: Vec3[] = [];
+    trans1.forEach(mat => {
+      posArr.push(GUI.getVec3(mat, 3));
+    })
+
+    let pos = posArr[0];
+    let end = GUI.getVec3(trans2, 3);
+    // I actually don't want to normalize so that
+    // pos + dir * 0 = pos, and pos + dir * 1 = end;
+    let dir: Vec3 = Vec3.difference(end, pos);
+    this.getMesh(0).translateRoots(posArr, dir, timeInterval);
+
+    // This is unnecessary since translate roots sets
+    // the transBs. I do this to maintain the 
+    // get/setKeyframe convention I decided on earlier.
+    // But this is jank.
+    this.getMesh(0).rootBones.forEach(bone => {
+      resultMats.push(bone.transB);
+    })
+
     // Update Animation
-    this.animation.getScene().meshes[0].setNewRotations(resultQuats);
+    let newKF: Keyframe = new Keyframe(resultQuats, resultMats);
+    this.getMesh(0).setKeyframe(newKF);
   }
 
   /**
@@ -506,13 +598,35 @@ export class GUI implements IGUI {
       this.dragEnd(mouse)
     );
 
-    canvas.addEventListener("wheel", (wheel: WheelEvent) =>
-      this.zoom(wheel)
-    );
+    // canvas.addEventListener("wheel", (wheel: WheelEvent) =>
+    //   this.zoom(wheel)
+    // );
 
     /* Event listener to stop the right click menu */
     canvas.addEventListener("contextmenu", (event: any) =>
       event.preventDefault()
     );
+  }
+
+  /* Static Ray/Translation Methods */
+
+  // Assumes t is greater than RAY_EPSILON
+  public static rayAt(pos: Vec3, dir: Vec3, t: number): Vec3 {
+    return Vec3.sum(pos, dir.scale(t));
+  }
+
+  public static transMatrix(vec: Vec3) {
+    let transMat: Mat4 = new Mat4([
+      1, 0, 0, 0,
+      0, 1, 0, 0,
+      0, 0, 1, 0,
+      vec.x, vec.y, vec.z, 1
+    ]);
+    return transMat;
+  }
+
+  public static getVec3(mat: Mat4, colIndex: number) {
+    let tCol = mat.col(colIndex);
+    return new Vec3([tCol[0], tCol[1], tCol[2]]);
   }
 }

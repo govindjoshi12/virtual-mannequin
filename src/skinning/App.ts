@@ -86,9 +86,6 @@ export class SkinningAnimation extends CanvasAnimation {
     // Other initialization, for instance, for the bone highlighting
 
     this.initGui();
-
-
-
     this.millis = new Date().getTime();
   }
 
@@ -102,6 +99,22 @@ export class SkinningAnimation extends CanvasAnimation {
   public reset(): void {
     this.gui.reset();
     this.setScene(this.loadedScene);
+  }
+
+  // Appends current state of canvas to 
+  // htmlElement parameter
+  public drawImage(htmlElement: Element) {
+    let image = new Image();
+    image.src = this.c.toDataURL();
+    image.width = 128;
+    image.height = 128;
+    image.classList.add('keyframe-image');
+    image.classList.add('draggable');
+    
+    let node = document.createElement('li');
+    node.appendChild(image)
+
+    htmlElement.appendChild(node);
   }
 
   public initGui(): void {
@@ -226,7 +239,7 @@ export class SkinningAnimation extends CanvasAnimation {
 
     this.skeletonRenderPass.addUniform("bHighlights",
       (gl: WebGLRenderingContext, loc: WebGLUniformLocation) => {
-        gl.uniform4fv(loc, this.getScene().meshes[0].getBoneHighlights());
+        gl.uniform4fv(loc, this.getScene().meshes[0].getBoneHighlights(this.getGUI().translating()));
       });
 
     this.skeletonRenderPass.setDrawData(this.ctx.LINES,
@@ -362,6 +375,7 @@ export class SkinningAnimation extends CanvasAnimation {
     this.scene = new CLoader(fileLocation);
     this.scene.load(() => this.initScene());
     this.getGUI().keyframes = [];
+    document.getElementById("keyframe-box").innerHTML = '';
   }
 }
 

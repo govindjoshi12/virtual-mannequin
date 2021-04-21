@@ -1,21 +1,11 @@
 import "./skinning/index.js";
 
-var images = ['hi', 'https://upload.wikimedia.org/wikipedia/en/a/a9/MarioNSMBUDeluxe.png', 'https://upload.wikimedia.org/wikipedia/en/7/73/Luigi_NSMBUDX.png'];
+$(function () {
+    $(".sortable").sortable({
+      revert: true,
+      connectWith: ".sortable"
+    });
 
-var list = document.createElement('ul');
-
-var fragment = document.createDocumentFragment();
-
-
-images.forEach(function (images) {
-	var li = document.createElement('li');
-	li.textContent = images;
-	fragment.appendChild(li);
+    $("ul, li").disableSelection();
+    $(".delete").on('click', function () { $(this).parent().remove();});
 });
-
-list.appendChild(fragment);
-
-console.log(list);
-
-var app = document.querySelector('#app');
-app.appendChild(list);
