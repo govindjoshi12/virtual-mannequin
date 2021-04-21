@@ -55,10 +55,10 @@ export class GUI implements IGUI {
   public time: number;
   public mode: Mode;
 
-  public boxDiv: string = "keyframe-box";
-  public amountDiv: string = "amount";
-  public fpsToggle: string = "fps"
-  public loopToggle: string = "loop";
+  public static boxDiv: string = "keyframe-box";
+  public static amountDiv: string = "amount";
+  public static fpsToggle: string = "fps"
+  public static loopToggle: string = "loop";
 
   public hoverX: number = 0;
   public hoverY: number = 0;
@@ -88,9 +88,9 @@ export class GUI implements IGUI {
   }
 
   public getUIInputs() {
-    let speedInp = document.getElementById(this.amountDiv) as HTMLInputElement;
-    let fpsTog = document.getElementById(this.fpsToggle) as HTMLInputElement;
-    let loopTog = document.getElementById(this.loopToggle) as HTMLInputElement;
+    let speedInp = document.getElementById(GUI.amountDiv) as HTMLInputElement;
+    let fpsTog = document.getElementById(GUI.fpsToggle) as HTMLInputElement;
+    let loopTog = document.getElementById(GUI.loopToggle) as HTMLInputElement;
     
     this.keyframeSpeedScale = parseFloat(speedInp.value);
     this.fps = fpsTog.checked;
@@ -444,7 +444,7 @@ export class GUI implements IGUI {
         // Reset animation and Keyframes
         this.animation.reset();
         this.keyframes = [];
-        document.getElementById(this.boxDiv).innerHTML = '';
+        document.getElementById(GUI.boxDiv).innerHTML = '';
         break;
       }
       case "ShiftLeft": {
@@ -479,7 +479,7 @@ export class GUI implements IGUI {
 
           // TODO:
           // Set Camera to "initial position", take image, then reset camera to current position.
-          this.animation.drawImage(document.getElementById(this.boxDiv));
+          this.animation.drawImage(document.getElementById(GUI.boxDiv));
         }
         break;
       }
