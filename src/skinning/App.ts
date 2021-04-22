@@ -447,8 +447,14 @@ export class SkinningAnimation extends CanvasAnimation {
     this.loadedScene = fileLocation;
     this.scene = new CLoader(fileLocation);
     this.scene.load(() => this.initScene());
+    
+    // GUI Ops
     this.getGUI().keyframes = [];
-    document.getElementById("keyframe-box").innerHTML = '';
+    document.getElementById(GUI.boxDiv).innerHTML = '';
+
+    this.getGUI().loop = false;
+    let toggle = document.getElementById(GUI.loopToggle) as HTMLInputElement;
+    toggle.checked = false;
   }
 }
 
