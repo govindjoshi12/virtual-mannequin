@@ -17,6 +17,7 @@
 
 html {
     height: 100%;
+    overflow: hidden;
 }
 
 .manual img {
@@ -36,7 +37,7 @@ body {
 
 .card {
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
+    /*box-shadow: var(--shadow); */
     padding: var(--padding);
     background-color: rgba(255, 255, 255, 0.287);
 }
@@ -96,4 +97,22 @@ body {
     left: 0px;
     top: 0px;
     z-index: 10;
+}
+
+.keyframe-image {
+    margin-top: 28px;
+    box-shadow: none;
+
+}
+
+.keyframe-list {
+    display: inline-block;
+    height: 124px;
+    overflow: hidden;
+    box-shadow: none;
+}
+
+.delete-icon {
+    top: 4px; 
+    right: 4px
 }

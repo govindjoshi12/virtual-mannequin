@@ -280,18 +280,21 @@ export class Mesh {
 
   // Translates all root bones
   public translateRoots(pos: Vec3[], dir: Vec3, time: number) {
-    let dirNormal: Vec3 = new Vec3([0, 0, 0]);
-    dir.normalize(dirNormal);
-
+    let dirNormal = dir.copy();
+    dirNormal.normalize();
+    dirNormal.negate();
+    // No need to check for lengths because pos array will be
+    // smae length as rootBones
     this.rootBones.forEach((bone, index) => {
       bone.initialPosition = GUI.rayAt(pos[index], dir, time);
 
       // Highlighting relies on endpoint, which relies on initialEndpoint
       // Need to adjust endpoint each time initialPosition is adjusted
 
+      this.setTransB(bone);    
+
       // This is a bug: To hide it, I just highlight the entire skeleton
       bone.initialEndpoint = GUI.rayAt(bone.initialPosition, dirNormal, bone.length);
-      this.setTransB(bone);    
     });
   }
 

@@ -35,7 +35,7 @@ export class GUI implements IGUI {
   private static readonly translateSpeed: number = 0.05;
 
   private camera: Camera;
-  private dragging: boolean; 
+  private dragging: boolean;
   private fps: boolean;
   private prevX: number;
   private prevY: number;
@@ -78,7 +78,7 @@ export class GUI implements IGUI {
     this.animation = animation;
     this.keyframes = [];
     this.getUIInputs();
-
+    
     this.modeShift = false;
     this.hideBones = false;
 
@@ -91,8 +91,10 @@ export class GUI implements IGUI {
     let speedInp = document.getElementById(this.amountDiv) as HTMLInputElement;
     let fpsTog = document.getElementById(this.fpsToggle) as HTMLInputElement;
     let loopTog = document.getElementById(this.loopToggle) as HTMLInputElement;
-    
-    this.keyframeSpeedScale = parseFloat(speedInp.value);
+
+    let newSpeed = parseFloat(speedInp.value);
+    this.keyframeSpeedScale = newSpeed;
+
     this.fps = fpsTog.checked;
     this.loop = loopTog.checked;
   }
@@ -182,19 +184,27 @@ export class GUI implements IGUI {
     }
   }
 
-  public playback() : boolean{
+  public playback(): boolean {
     return this.mode == Mode.playback;
   }
 
   public getModeString(): string {
     switch (this.mode) {
       case Mode.edit: { return "edit: " + this.getNumKeyFrames() + " keyframes"; }
-      case Mode.playback: { 
+      case Mode.playback: {
         let str = "playback: " + this.getTime().toFixed(2) + " / ";
-        str += this.loop ? "∞" : this.getMaxTime().toFixed(2); 
+        str += this.loop ? "∞" : this.getMaxTime().toFixed(2);
         return str;
       }
     }
+  }
+
+  public getScrollBarCur() {
+    return this.getTime();
+  }
+
+  public getScrollBarMax() {
+    return this.getMaxTime();
   }
 
   /**
@@ -290,21 +300,20 @@ export class GUI implements IGUI {
       let currBone: Bone = null;
       let currTime: number = Bone.NO_INTERSECT;
 
+      let found = false;
       for (let i = 0; i < bones.length; i++) {
         // intersect each bone with ray
         let t = bones[i].intersect(pos, dir);
         let hl = false;
-        if (t != Bone.NO_INTERSECT) {
-          if (t <= currTime) {
-            currBone = bones[i];
-            currTime = t;
-            hl = true;
-          }
+        if (t != Bone.NO_INTERSECT && t <= currTime && found == false) {
+          currBone = bones[i];
+          currTime = t;
+          hl = true;
+          found = true;
         }
 
-        if (!hl)
-          this.removeHighlight(bones[i]);
-        }
+        if (!hl) { this.removeHighlight(bones[i]); }
+      }
 
       // Highlights everytime, but technically,
       // check to see if it's highlight will 
@@ -361,7 +370,6 @@ export class GUI implements IGUI {
     // Maybe your bone highlight/dragging logic needs to do stuff here too
   }
 
-  /*
   // Zoom with Scroll Wheel
   public zoom(wheel: WheelEvent): void {
     let deltaX = wheel.deltaX;
@@ -376,7 +384,7 @@ export class GUI implements IGUI {
     }
     //console.log("Scroll amount: " + deltaY);
   }
-*/
+
 
   /**
    * Callback function for a key press event
@@ -413,11 +421,11 @@ export class GUI implements IGUI {
         break;
       }
       case "Digit8": {
-        this.animation.setScene("/static/assets/skinning/mob.dae");
+        this.animation.setScene("/static/assets/skinning/HumanDae.dae");
         break;
       }
       case "Digit9": {
-        this.animation.setScene("/static/assets/skinning/spy.dae");
+        this.animation.setScene("/static/assets/skinning/mob.dae");
         break;
       }
       case "KeyW": {
@@ -493,6 +501,14 @@ export class GUI implements IGUI {
         }
         break;
       }
+      case "KeyU": {
+        
+        break;
+      }
+      case "KeyI": {
+        
+        break;
+      }
       default: {
         console.log("Key : '", key.code, "' was pressed.");
         break;
@@ -502,14 +518,17 @@ export class GUI implements IGUI {
 
 
   public interpolate() {
+    // Current Time Scaling:
+    // Ex. if speed is 0.5 seconds, once time equals 0.5, it will
+    // be mapped to 1;
     let scaledTime = this.time * (1 / this.keyframeSpeedScale);
     let currentKey: number = (Math.floor(scaledTime)) % this.getNumKeyFrames();
 
     let idx1 = currentKey;
     let idx2 = currentKey + 1;
 
-    if(currentKey + 1 >= this.getNumKeyFrames()) {
-      if(this.loop) {
+    if (currentKey + 1 >= this.getNumKeyFrames()) {
+      if (this.loop) {
         // Loop from end of list back to beginning
         idx2 = 0;
       } else {
@@ -598,9 +617,9 @@ export class GUI implements IGUI {
       this.dragEnd(mouse)
     );
 
-    // canvas.addEventListener("wheel", (wheel: WheelEvent) =>
-    //   this.zoom(wheel)
-    // );
+    canvas.addEventListener("wheel", (wheel: WheelEvent) =>
+      this.zoom(wheel)
+    );
 
     /* Event listener to stop the right click menu */
     canvas.addEventListener("contextmenu", (event: any) =>

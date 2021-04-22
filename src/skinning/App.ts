@@ -13,6 +13,7 @@ import {
   skeletonFSText,
   skeletonVSText,
   sBackVSText,
+
   sBackFSText
 } from "./Shaders.js";
 import { Mat4, Vec4, Vec3 } from "../lib/TSM.js";
@@ -51,6 +52,11 @@ export class SkinningAnimation extends CanvasAnimation {
   private canvas2d: HTMLCanvasElement;
   private ctx2: CanvasRenderingContext2D | null;
 
+  /* Loop Gradient Variables */
+  private gradx: number;
+  private grady: number;
+  private gradMax: number;
+
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -80,7 +86,9 @@ export class SkinningAnimation extends CanvasAnimation {
 
     // Status bar
     this.sBackRenderPass = new RenderPass(this.extVAO, gl, sBackVSText, sBackFSText);
-
+    this.gradx = 0;
+    this.grady = 0;
+    this.gradMax = 35; // Arbitrary, from code pen;
 
     // TODO
     // Other initialization, for instance, for the bone highlighting
@@ -110,9 +118,10 @@ export class SkinningAnimation extends CanvasAnimation {
     image.height = 128;
     image.classList.add('keyframe-image');
     image.classList.add('draggable');
-    
+
     let node = document.createElement('li');
-    node.appendChild(image)
+    node.appendChild(image);
+    node.classList.add('keyframe-list');
 
     htmlElement.appendChild(node);
   }
@@ -307,7 +316,7 @@ export class SkinningAnimation extends CanvasAnimation {
 
     // TODO
     // If the mesh is animating, probably you want to do some updating of the skeleton state here
-    if(this.getGUI().playback())
+    if (this.getGUI().playback())
       this.getGUI().interpolate();
 
     // draw the status message
@@ -315,10 +324,54 @@ export class SkinningAnimation extends CanvasAnimation {
       this.ctx2.clearRect(0, 0, this.ctx2.canvas.width, this.ctx2.canvas.height);
       if (this.scene.meshes.length > 0) {
         this.ctx2.fillText(this.getGUI().getModeString(), 50, 710);
+
+        let max = this.getGUI().getScrollBarMax();
+        let val = this.getGUI().getScrollBarCur();
+        let widthOffset = 10;
+        let heightOffset = 735;
+        let width = this.ctx2.canvas.width;
+        let height = 1;
+        let color = '#ffffff';
+
+        // Case where we're currently looping
+        if (this.getGUI().playback()) {
+          if (max == Number.MAX_VALUE) {
+            //https://codepen.io/tmrDevelops/pen/vOPZBv
+
+            // Increment conditionally based on time
+            // to slow down the gradient
+            let t = this.getGUI().time;
+
+            if((t * 1000) % 5 == 0) {
+              this.grady++;
+              if (this.grady >= this.gradMax) {
+                this.grady = 0;
+                this.gradx++;
+              }
+
+              if (this.gradx >= this.gradMax) {
+                this.gradx = 0;
+              }
+            }            
+
+            let r = this.getR(this.gradx, this.grady, t);
+            let g = this.getG(this.gradx, this.grady, t);
+            let b = this.getB(this.gradx, this.grady, t);
+            color = this.rgb(r, g, b);
+
+            this.ctx2.fillStyle = color;
+            this.ctx2.fillRect(0, heightOffset, width, height + heightOffset);
+          }
+          else {
+            // Playback
+            this.ctx2.fillStyle = color;
+            let percent = Math.min(Math.max(val / max, 0), 1);
+            this.ctx2.fillRect(0, heightOffset, percent * width, height + heightOffset);
+          }
+        }
+
       }
     }
-
-
 
     // Drawing
     const gl: WebGLRenderingContext = this.ctx;
@@ -341,6 +394,24 @@ export class SkinningAnimation extends CanvasAnimation {
 
   }
 
+  // Gradient Animation Methods
+  public rgb(r: number, g: number, b: number) {
+    return "rgb(" + r + "," + g + "," + b + ")";
+  }
+
+  public getR(x: number, y: number, t: number) {
+    return (Math.floor(192 + 64 * Math.cos((x * x - y * y) / 300 + t)));
+  }
+
+  public getG(x: number, y: number, t: number) {
+    return (Math.floor(192 + 64 * Math.sin((x * x * Math.cos(t / 4) + y * y * Math.sin(t / 3)) / 300)));
+  }
+
+  public getB(x: number, y: number, t: number) {
+    return (Math.floor(192 + 64 * Math.sin(5 * Math.sin(t / 9) + ((x - 100) * (x - 100) + (y - 100) * (y - 100)) / 1100)));
+  }
+  // Done with Gradient Animation Methods
+
   private drawScene(x: number, y: number, width: number, height: number): void {
     const gl: WebGLRenderingContext = this.ctx;
     gl.viewport(x, y, width, height);
@@ -352,7 +423,7 @@ export class SkinningAnimation extends CanvasAnimation {
       this.sceneRenderPass.draw();
       gl.disable(gl.DEPTH_TEST);
 
-      if(!this.getGUI().hideBones)
+      if (!this.getGUI().hideBones)
         this.skeletonRenderPass.draw();
 
       // TODO
@@ -361,6 +432,8 @@ export class SkinningAnimation extends CanvasAnimation {
       gl.enable(gl.DEPTH_TEST);
     }
   }
+
+
 
   public getGUI(): GUI {
     return this.gui;
