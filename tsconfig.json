@@ -7,7 +7,8 @@
         "target": "ES6",
         "outDir": "dist",
         "sourceMap": true,
-        "alwaysStrict":true
+        "alwaysStrict":true,
+        "declaration": true
     },
     "include": [ "./src/skinning/*.ts", "src/lib/vue/vue.js", "src/lib/threejs/examples/jsm/loaders/*.js"],
     "watchOptions": {
