@@ -113,7 +113,7 @@ export class SkinningAnimation extends CanvasAnimation {
   // htmlElement parameter
   public drawImage(htmlElement: Element) {
     let image = new Image();
-    image.src = this.c.toDataURL();
+    image.src = this.canvas2d.toDataURL();
     image.width = 128;
     image.height = 128;
     image.classList.add('keyframe-image');

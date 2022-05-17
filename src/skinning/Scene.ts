@@ -245,8 +245,9 @@ export class Mesh {
     mesh.bones.forEach(bone => {
       let newBone: Bone = new Bone(bone);
       this.bones.push(newBone);
-      if(newBone.parent == -1)
+      if(newBone.parent == -1) {
         this.rootBones.push(newBone);
+      }
     });
     this.bones.forEach(newBone => {this.setTransB(newBone)});
 
@@ -255,11 +256,10 @@ export class Mesh {
     this.boneIndices = Array.from(mesh.boneIndices);
     this.bonePositions = new Float32Array(mesh.bonePositions);
     this.boneIndexAttribute = new Float32Array(mesh.boneIndexAttribute);
+    console.log("why twice");
   }
 
   public setTransB(bone: Bone) {
-    let transBji: Mat4 = Mat4.identity.copy();
-    
     let c: Vec3 = bone.initialPosition;
     let p: Vec3 = new Vec3([0, 0, 0]);
 
@@ -268,43 +268,21 @@ export class Mesh {
     }
 
     let vec: Vec3 = Vec3.difference(c, p);
-    //console.log(vec);
-    transBji = new Mat4([
-      1, 0, 0, 0,
-      0, 1, 0, 0,
-      0, 0, 1, 0,
-      vec.x, vec.y, vec.z, 1
-    ]);
+    let transBji = GUI.transMatrix(vec);
     bone.transB = transBji;
   }
 
   // Translates all root bones
-  public translateRoots(pos: Vec3[], dir: Vec3, time: number) {
-    let dirNormal = dir.copy();
-    dirNormal.normalize();
-    dirNormal.negate();
-    // No need to check for lengths because pos array will be
-    // smae length as rootBones
-    this.rootBones.forEach((bone, index) => {
-      bone.initialPosition = GUI.rayAt(pos[index], dir, time);
+  public translateRoots(dir: Vec3, time: number) {
+    /* I don't know why this works. */
+    for(let i = 0; i < this.rootBones.length; i++) {
+      let bone = this.rootBones[0];
 
-      // Highlighting relies on endpoint, which relies on initialEndpoint
-      // Need to adjust endpoint each time initialPosition is adjusted
-
-      this.setTransB(bone);    
-
-      // This is a bug: To hide it, I just highlight the entire skeleton
-      bone.initialEndpoint = GUI.rayAt(bone.initialPosition, dirNormal, bone.length);
-    });
-  }
-
-  // Root Positions
-  public getRootPositions(): Vec3[] {
-    let result: Vec3[] = [];
-    this.rootBones.forEach(bone => {
-      result.push(bone.initialPosition);
-    })
-    return result;
+      bone.initialPosition = GUI.rayAt(bone.initialPosition, dir, time);
+      let resMat = GUI.transMatrix(bone.initialPosition);
+      
+      this.rootBones[i].transB = resMat;
+    }
   }
 
   public setBone(bone: Bone) {

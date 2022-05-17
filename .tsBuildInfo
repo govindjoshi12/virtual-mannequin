@@ -1281,14 +1281,9 @@
         "signature": "c059cf199b5566a8affd515bcacb35e1f6520f17ee53e94aaea43bf773161df6",
         "affectsGlobalScope": false
       },
-      "./src/skinning/scene.ts": {
-        "version": "c6fdb7fb4987b7335163c2dde8d99d507ee1000545eb4f55c90dbc4beeb05e71",
-        "signature": "d3faf25ef36281bfbd86d9d0586cab1811c72eee8e870ad497c798773e369c1b",
-        "affectsGlobalScope": false
-      },
-      "./src/skinning/animationfileloader.ts": {
-        "version": "2faabd1b41a2af48c2df0284ee881d5b9276a66ab74aa55688af375aa487daa4",
-        "signature": "e16ec2a12ebee3053f4deb5928e93775da87a47c3507787de4be4b86f6b8d069",
+      "./src/lib/webglutils/camera.ts": {
+        "version": "b85d1222e86b2daca758f38963ff83c539c716a88e1a487830dbe23ba22cad68",
+        "signature": "73bc57a82f76e140b86075bcc266f298ddfdd0ca5a0235d5e90337eec5647084",
         "affectsGlobalScope": false
       },
       "./src/lib/webglutils/canvasanimation.ts": {
@@ -1306,9 +1301,9 @@
         "signature": "a78ce5a8c6fb424bf4d917c91a3334fd5c2c543bd211f4ed3575da46873ccb25",
         "affectsGlobalScope": false
       },
-      "./src/lib/webglutils/camera.ts": {
-        "version": "b85d1222e86b2daca758f38963ff83c539c716a88e1a487830dbe23ba22cad68",
-        "signature": "73bc57a82f76e140b86075bcc266f298ddfdd0ca5a0235d5e90337eec5647084",
+      "./src/skinning/shaders.ts": {
+        "version": "cc2b3aa8c00e84e3a7b37d5a5cd9b07ead1f7c92a253e907624ffc85902352e0",
+        "signature": "9f767c87efb96f08fc641726fbed120bdee8511b298aceb28a811a5619bcef18",
         "affectsGlobalScope": false
       },
       "./src/lib/webglutils/renderpass.ts": {
@@ -1316,19 +1311,24 @@
         "signature": "4126336efdb6ef414b868d46010c365e72f15d01f7f307aa116bc3748c889633",
         "affectsGlobalScope": false
       },
-      "./src/skinning/gui.ts": {
-        "version": "bc7dd1ff22a1b1e89d535c9b06538ee2f94981e421d7a5901d8107fc68809678",
-        "signature": "2143585425f94205e6a266f1fe2780f601c74402735ae3904fcf5f66db279410",
-        "affectsGlobalScope": false
-      },
-      "./src/skinning/shaders.ts": {
-        "version": "ccc47b496a4b9a0a6e20cc82b99049a7850391dc9e7f5ed9800074f0e0a0e095",
-        "signature": "94db40f2462ffde44135906d8a69e199de710b19fb86a783e741bf34c3d38b64",
-        "affectsGlobalScope": false
-      },
       "./src/skinning/app.ts": {
-        "version": "f3ac76a4e3ea7459170d9ac5ad17aaecfcdfb765e2f3b36cfe9b23ddbaa84ba3",
-        "signature": "530f24bc46311d34b7976131b8916d92ffae4c7411a1e2434ffb547d4ead5179",
+        "version": "8cae854c0d417a6bc649455d2ded4c82e7f4a20b9344ce5db27533bfafff6f5b",
+        "signature": "b2d2d533d266cb518f16cf1fdf45eaa61e8db514d3fc3f1e78370bb2bbda9a47",
+        "affectsGlobalScope": false
+      },
+      "./src/skinning/gui.ts": {
+        "version": "5624382ecf4f94272c4587431f3712f0ec5cb25efc43b1f5816b48c004febf32",
+        "signature": "3e1616f6c9ca5ccb2a3ce8daee8bbebc3edd9c5e55df29110de86a2d50f69ae7",
+        "affectsGlobalScope": false
+      },
+      "./src/skinning/scene.ts": {
+        "version": "d5baf4cd036f7f2628a8cc8c16134b570bc9bdf6ef664669dd7adb73af35f7f4",
+        "signature": "e7aff5c2a7ed077c50238faf9baccdc0de5763d36de1f567fed37ceba5dfad6e",
+        "affectsGlobalScope": false
+      },
+      "./src/skinning/animationfileloader.ts": {
+        "version": "2faabd1b41a2af48c2df0284ee881d5b9276a66ab74aa55688af375aa487daa4",
+        "signature": "e16ec2a12ebee3053f4deb5928e93775da87a47c3507787de4be4b86f6b8d069",
         "affectsGlobalScope": false
       },
       "./src/skinning/index.ts": {
@@ -2771,7 +2771,8 @@
       ],
       "./src/skinning/scene.ts": [
         "./src/lib/tsm.ts",
-        "./src/skinning/animationfileloader.ts"
+        "./src/skinning/animationfileloader.ts",
+        "./src/skinning/gui.ts"
       ]
     },
     "exportedModulesMap": {

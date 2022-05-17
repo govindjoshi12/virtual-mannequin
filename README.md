@@ -116,12 +116,16 @@ Extra Credit
         single roots, but I don't know if it works for multiple roots because
         of the translation bug mentioned above. I couldn't test it.
 
+        Other Feature: 
+        Pressing Space bar shows/hides the bones for so the artistic can
+        view their animations without the bones hiding details. 
+
     Timeline in Status Bar (1 Whistle):
         Getting a good looking timeline for the status bar woking with our project
         was actually trickier than we expected, well at least it took us longer 
         than we expected. In our draw method in App.ts we were able to draw a Rect 
         which coresponded to the percentage completion. We also implemented a rainbow 
-        feature when we are in loop mode as ther is no completion time. 
+        feature when we are in loop mode as there is no completion time. 
 
     Find character model (1 Bell):
         We were able to find two character models that worked well with our 
@@ -138,7 +142,7 @@ Extra Credit
         Keyframe control panel.
 
     Arbitrary durations between keyframes (1 Bell and 1 Whistle):
-        I implemented a speed slider which controls how many seconds each keyframe will last 
+        I implemented a speed slider which controls how many seconds each keyframe will last  p p
         for. In order to accomplish the speed changes, I scale the current time by (1 / speed);
         In this way, the integer portion of the scaled time corrsponds to the correct keyframe.
         -
@@ -146,4 +150,15 @@ Extra Credit
         I also implemented a loop feature. When the loop switch is toggled, the last keyframe 
         in the keyframe array interpolates with the 0th keyframe, and the animation loops
         until the switch is toggle or the animation is paused. 
-
+        
+    Misc. Information":        
+        You can use the scroll wheel to zoom in and out faster as well. This is useful for
+        8 and 9.
+        
+        You are also able to drag the keyframes to diffrent positions. This was added so 
+        that we could move the keyframes around and change their order. Although we were
+        not able to get that to work, the groundwork is there for implementing this feature.
+        
+        Also there are extra dae files left in the project folder that we would like to 
+        fix/reuse in the future; they do not work in their current state (skin detatched
+        from bones, too many polygons, etc.)

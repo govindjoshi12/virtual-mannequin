@@ -258,8 +258,7 @@ export class GUI implements IGUI {
           let axis: Vec3 = Vec3.cross(this.camera.forward(), mouseDir);
           bone.rotate(GUI.rotationSpeed, axis);
         } else {
-          let pos: Vec3[] = this.getMesh(0).getRootPositions();
-          this.getMesh(0).translateRoots(pos, mouseDir, GUI.translateSpeed);
+          this.getMesh(0).translateRoots(mouseDir, GUI.translateSpeed);
         }
 
         this.getMesh(0).update();
@@ -556,36 +555,19 @@ export class GUI implements IGUI {
       resultQuats.push(Quat.slerp(q1, q2, timeInterval));
     }
 
-    /*
-      Each root will be translated by same amount in
-      same direction, so can just use info from one
-      root to set new transBs.
-    */
+    // Translate Roots
     let trans1: Mat4[] = model1.getTranslations();
-    let trans2: Mat4 = model2.getTranslations()[0];
+    let trans2: Mat4[] = model2.getTranslations();
     let resultMats: Mat4[] = [];
+    for(let j = 0; j < trans1.length; j++) {
+      let vec1: Vec3 = GUI.getVec3(trans1[j], 3);
+      let vec2: Vec3 = GUI.getVec3(trans2[j], 3);
 
-    // Get translation columns
-    // This is the current value of the bone's initial pos
-    let posArr: Vec3[] = [];
-    trans1.forEach(mat => {
-      posArr.push(GUI.getVec3(mat, 3));
-    })
+      let resVec: Vec3 = GUI.vec3Interpolate(vec1, vec2, timeInterval);
+      let resMat: Mat4 = GUI.transMatrix(resVec);
 
-    let pos = posArr[0];
-    let end = GUI.getVec3(trans2, 3);
-    // I actually don't want to normalize so that
-    // pos + dir * 0 = pos, and pos + dir * 1 = end;
-    let dir: Vec3 = Vec3.difference(end, pos);
-    this.getMesh(0).translateRoots(posArr, dir, timeInterval);
-
-    // This is unnecessary since translate roots sets
-    // the transBs. I do this to maintain the 
-    // get/setKeyframe convention I decided on earlier.
-    // But this is jank.
-    this.getMesh(0).rootBones.forEach(bone => {
-      resultMats.push(bone.transB);
-    })
+      resultMats.push(resMat);
+    }
 
     // Update Animation
     let newKF: Keyframe = new Keyframe(resultQuats, resultMats);
@@ -645,5 +627,11 @@ export class GUI implements IGUI {
   public static getVec3(mat: Mat4, colIndex: number) {
     let tCol = mat.col(colIndex);
     return new Vec3([tCol[0], tCol[1], tCol[2]]);
+  }
+
+  // Time should be between 0 and 1
+  public static vec3Interpolate(vec1: Vec3, vec2: Vec3, time: number) {
+    let dir: Vec3 = Vec3.difference(vec2, vec1);
+    return GUI.rayAt(vec1, dir, time);
   }
 }

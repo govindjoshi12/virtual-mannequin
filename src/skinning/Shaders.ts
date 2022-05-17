@@ -104,6 +104,65 @@ export const sceneVSText = `
 
 `;
 
+export const sceneVSText_DualQuat = `
+    precision mediump float;
+
+    attribute vec3 vertPosition;
+    attribute vec2 aUV;
+    attribute vec3 aNorm;
+    attribute vec4 skinIndices;
+    attribute vec4 skinWeights;
+    attribute vec4 v0;
+    attribute vec4 v1;
+    attribute vec4 v2;
+    attribute vec4 v3;
+
+    varying vec4 lightDir;
+    varying vec2 uv;
+    varying vec4 normal;
+
+    uniform vec4 lightPosition;
+    uniform mat4 mWorld;
+    uniform mat4 mView;
+    uniform mat4 mProj;
+
+    uniform vec3 jTrans[64];
+    uniform vec4 jRots[64];
+
+    vec3 qtrans(vec4 q, vec3 v) {
+        return v + 2.0 * cross(cross(v, q.xyz) - q.w*v, q.xyz);
+    }
+
+    vec3 weightedPos(int index, float weight, vec4 vertPos) {
+        return weight * vec3(jTrans[index] + qtrans(jRots[index], vertPos.xyz));
+    }
+
+    vec3 weightedNormals(int index, float weight, vec3 normal) {
+        return weight * vec3(qtrans(jRots[index], normal));
+    }
+
+    void main () {
+        vec4 blendedVertex = vec4((weightedPos(int(skinIndices.x), skinWeights.x, v0)
+                            + weightedPos(int(skinIndices.y), skinWeights.y, v1)
+                            + weightedPos(int(skinIndices.z), skinWeights.z, v2)
+                            + weightedPos(int(skinIndices.w), skinWeights.w, v3)), 1.0);
+
+        vec4 worldPosition = mWorld * blendedVertex;
+        gl_Position = mProj * mView * worldPosition;
+        
+        //  Compute light direction and transform to camera coordinates
+        lightDir = lightPosition - worldPosition;
+        
+        vec4 aNorm4 = vec4((weightedNormals(int(skinIndices.x), skinWeights.x, aNorm)
+                        + weightedNormals(int(skinIndices.y), skinWeights.y, aNorm)
+                        + weightedNormals(int(skinIndices.z), skinWeights.z, aNorm)
+                        + weightedNormals(int(skinIndices.w), skinWeights.w, aNorm)), 0.0);
+        normal = normalize(mWorld * aNorm4);
+
+        uv = aUV;
+    }
+`;
+
 export const sceneFSText = `
     precision mediump float;
 
