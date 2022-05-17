@@ -390,39 +390,39 @@ export class GUI implements IGUI {
   public onKeydown(key: KeyboardEvent): void {
     switch (key.code) {
       case "Digit1": {
-        this.animation.setScene("/static/assets/skinning/split_cube.dae");
+        this.animation.setScene("./static/assets/skinning/split_cube.dae");
         break;
       }
       case "Digit2": {
-        this.animation.setScene("/static/assets/skinning/long_cubes.dae");
+        this.animation.setScene("./static/assets/skinning/long_cubes.dae");
         break;
       }
       case "Digit3": {
-        this.animation.setScene("/static/assets/skinning/simple_art.dae");
+        this.animation.setScene("./static/assets/skinning/simple_art.dae");
         break;
       }
       case "Digit4": {
-        this.animation.setScene("/static/assets/skinning/mapped_cube.dae");
+        this.animation.setScene("./static/assets/skinning/mapped_cube.dae");
         break;
       }
       case "Digit5": {
-        this.animation.setScene("/static/assets/skinning/robot.dae");
+        this.animation.setScene("./static/assets/skinning/robot.dae");
         break;
       }
       case "Digit6": {
-        this.animation.setScene("/static/assets/skinning/head.dae");
+        this.animation.setScene("./static/assets/skinning/head.dae");
         break;
       }
       case "Digit7": {
-        this.animation.setScene("/static/assets/skinning/wolf.dae");
+        this.animation.setScene("./static/assets/skinning/wolf.dae");
         break;
       }
       case "Digit8": {
-        this.animation.setScene("/static/assets/skinning/HumanDae.dae");
+        this.animation.setScene("./static/assets/skinning/HumanDae.dae");
         break;
       }
       case "Digit9": {
-        this.animation.setScene("/static/assets/skinning/mob.dae");
+        this.animation.setScene("./static/assets/skinning/mob.dae");
         break;
       }
       case "KeyW": {
