@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="shortcut icon" href="static/favicon.ico">
+  <title>WebGL - Skinning</title>
+  <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+  <script type="module" src="./index.js"></script>
+
+  <!-- For Some reason, this method is not being identified 
+  when it's in the javascript file-->
+  <script>
+    function updateValue(value) {
+      document.getElementById("speed-amount").innerHTML = value;
+    }
+  </script>    
+
+</head>
+
+<body>
+  <div class="container">
+    <canvas id="glCanvas" class="card" width="800" height="800">
+      Your browser does not support HTML5 </canvas>
+    <canvas id="textCanvas" width="800" height="800">
+      Your browser does not support HTML5 </canvas>
+  </div>
+  <div id="keyframes">
+    <h2 id="keyframe-title">Keyframe Control Panel</h2><br>
+    <div id="control-panel">
+      <div class="control-panel-item" id="switches">
+        <!-- https://www.w3schools.com/howto/howto_css_switch.asp -->
+        <label class="switch">
+          <input type="checkbox" id="loop">
+          <span class="slider round"></span>
+        </label>
+        Loop Animation
+        <hr>
+        <label class="switch">
+          <input type="checkbox" id="fps">
+          <span class="slider round"></span>          
+        </label>
+        FPS Camera
+      </div>
+      <div id="speed-control" class="control-panel-item">
+        <p style="margin: 0;">
+          <label for="amount">1 Keyframe per
+          <span id="speed-amount">1</span>  
+          seconds</label>
+          <br>
+          <input type="range" value="1" min="0.1" max="5" step="0.1" 
+          id="amount" oninput="updateValue(this.value)" value="1">
+        </p>
+        <span>K: Add Keyframe</span><br>
+        <span>P: Play Animation</span><br>
+        <span>R: Reset Animation</span><br>
+      </div>
+      <div class="control-panel-item" id="text-help">
+        <span>LShift: <span style="color:green">Translate</span>/<span style="color:yellow">Rotate</span></span><br>
+        <span>Space: <span style="color:red">Show</span>/<span style="opacity: 0.5">Hide</span> Bones</span><br>
+        <span>WASD↑↓: Move Camera</span><br>
+        <span>← →: Rotate Camera</span><br>
+        <span>1-9: Change Scene</span>
+      </div>
+    </div>
+    <ul id="keyframe-box" class="sortable"></ul>
+    <div class="keyframe-string-container">
+      <input type="text" id="keyframe-string">
+      <button id="submit-keyframes">Enter</button>
+    </div>
+    <span>
+      A recent JS update has resulted in the keyframe display functionality to break. 
+      A fix from our end is not currently being worked on. Core animation functionality 
+      stillworks as intended. 
+    </span>
+  </div>
+</body>
+
+<link rel="stylesheet" type="text/css" href="static/keyframePanel.css" />
+<link rel="stylesheet" type="text/css" href="static/toggle.css" />
+<link rel="stylesheet" type="text/css" href="static/main.css" />
+</html>
